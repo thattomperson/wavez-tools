@@ -1,4 +1,4 @@
-import { getActivePlaylist, getTracks, type Playlist, type PlaylistTrack } from './api';
+import { getActivePlaylist, getTracks, type PlaylistSummary, type PlaylistTrack } from './api';
 import { getState } from './bridge';
 
 const URL_KEYS = ['url', 'permalinkUrl', 'permalink_url', 'sourceUrl'];
@@ -36,7 +36,7 @@ function isPlayingNow(track: PlaylistTrack): boolean {
   );
 }
 
-export async function getNextTrack(): Promise<{ playlist: Playlist; track: PlaylistTrack }> {
+export async function getNextTrack(): Promise<{ playlist: PlaylistSummary; track: PlaylistTrack }> {
   const playlist = await getActivePlaylist();
   const tracks = await getTracks(playlist.id);
   if (!tracks.length) throw new Error(`"${playlist.name}" is empty.`);

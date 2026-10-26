@@ -1,68 +1,30 @@
-// Minimal client for the WavezFM HTTP API, using the browser's session cookies.
-// Paths match the official @wavezfm/api SDK.
+// WavezFM HTTP API via the official @wavezfm/api SDK, using the browser's
+// session cookies. Only the resources we use are created, so the rest of the
+// SDK is tree-shaken out of the bookmarklet.
+import { createApi, createPlaylistResource, type PlaylistSummary, type PlaylistTrack } from '@wavezfm/api';
 
-const API_BASES = ['https://api.wavez.fm', `${location.origin}/api`];
+export type { PlaylistSummary, PlaylistTrack };
 
-export interface Playlist {
-  id: string;
-  name: string;
-  isActive?: boolean;
-  totalTracks?: number;
-  itemCount?: number;
-}
+const api = createApi({
+  baseURL: 'https://api.wavez.fm',
+  credentials: 'include',
+  // The SDK calls fetch as a method on itself; bind it so the browser doesn't
+  // throw "Illegal invocation".
+  fetch: (input, init) => window.fetch(input, init),
+});
 
-export interface PlaylistTrack {
-  id: string;
-  source: string;
-  sourceId: string;
-  title: string;
-  artist?: string;
-  durationMs?: number;
-  thumbnailUrl?: string | null;
-  position?: number;
-  isLive?: boolean;
-  customTitle?: string | null;
-  customArtist?: string | null;
-  [key: string]: unknown;
-}
+export const playlists = createPlaylistResource(api);
 
-let apiBase: string | null = null;
-
-export async function http<T>(path: string): Promise<T> {
-  const bases = apiBase ? [apiBase] : API_BASES;
-  let lastErr: unknown;
-  for (const base of bases) {
-    try {
-      const res = await fetch(base + path, {
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(body?.error || body?.message || `HTTP ${res.status}`);
-      }
-      apiBase = base;
-      return body as T;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr;
-}
-
-export async function listPlaylists(): Promise<Playlist[]> {
-  return (await http<Playlist[] | null>('/playlists')) ?? [];
-}
-
-export async function getActivePlaylist(): Promise<Playlist> {
-  const active = (await listPlaylists()).find((p) => p.isActive);
+export async function getActivePlaylist(): Promise<PlaylistSummary> {
+  const { data } = await playlists.list();
+  const active = data.find((p) => p.isActive);
   if (!active) throw new Error('No active playlist.');
   return active;
 }
 
 export async function getTracks(playlistId: string): Promise<PlaylistTrack[]> {
-  const list = (await http<PlaylistTrack[] | null>(`/playlists/${encodeURIComponent(playlistId)}/tracks`)) ?? [];
-  return list
+  const { data } = await playlists.getTracks(playlistId);
+  return data
     .map((track, index) => ({ track, index }))
     .sort((a, b) => (a.track.position ?? a.index) - (b.track.position ?? b.index))
     .map(({ track }) => track);

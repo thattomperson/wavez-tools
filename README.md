@@ -47,7 +47,7 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/commands/` | One file per button, registered in `commands/index.ts` |
 | `src/ui/` | Panel, DOM helper and styles |
 | `src/wavez/bridge.ts` | Types and helpers for the `window.WavezFM` bridge |
-| `src/wavez/api.ts` | HTTP client for playlists (`api.wavez.fm`, session cookies) |
+| `src/wavez/api.ts` | Playlist calls through the official [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK (session cookies) |
 | `src/wavez/tracks.ts` | Track links, names and "next track" logic |
 | `src/lib/` | Small shared helpers |
 
@@ -70,5 +70,3 @@ export const myCommand: Command = {
 Then add it to the `commands` array in `src/commands/index.ts`.
 
 The bridge is documented in the [Room Extension API](https://github.com/WavezFM/WavezFM-Extension-API).
-Playlist endpoints come from the [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK source
-(`GET /playlists`, `GET /playlists/:id/tracks`).
