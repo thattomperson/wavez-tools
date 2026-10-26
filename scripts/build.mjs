@@ -1,4 +1,4 @@
-// Builds dist/ from src/wavez-tools.js:
+// Builds dist/ from src/main.ts:
 //   wavez-tools.min.js   minified script the loader pulls in remotely
 //   loader.txt           javascript: URL that loads wavez-tools.min.js from SCRIPT_URL
 //   inline.txt           javascript: URL with the whole script inlined (no network needed)
@@ -16,7 +16,7 @@ const outDir = new URL('../dist/', import.meta.url);
 await mkdir(outDir, { recursive: true });
 
 const result = await build({
-  entryPoints: [new URL('../src/wavez-tools.js', import.meta.url).pathname],
+  entryPoints: [new URL('../src/main.ts', import.meta.url).pathname],
   bundle: true,
   minify: true,
   format: 'iife',
