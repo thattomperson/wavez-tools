@@ -1,0 +1,14 @@
+{
+  "name": "wavez-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bookmarklet with room and playlist tools for WavezFM",
+  "type": "module",
+  "scriptUrl": "https://thattomperson.github.io/wavez-tools/wavez-tools.min.js",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.23.1"
+  }
+}
