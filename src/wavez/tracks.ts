@@ -36,11 +36,24 @@ function isPlayingNow(track: PlaylistTrack): boolean {
   );
 }
 
-export async function getNextTrack(): Promise<{ playlist: PlaylistSummary; track: PlaylistTrack }> {
+export interface PlaylistQueue {
+  playlist: PlaylistSummary;
+  /** Every track in play order. */
+  tracks: PlaylistTrack[];
+  /** Index of the next track to play (1 when the top track is playing now). */
+  nextIndex: number;
+}
+
+export async function getPlaylistQueue(): Promise<PlaylistQueue> {
   const playlist = await getActivePlaylist();
   const tracks = await getTracks(playlist.id);
   if (!tracks.length) throw new Error(`"${playlist.name}" is empty.`);
   // While you're DJing, the playing track may still sit at the top; skip it.
-  const track = isPlayingNow(tracks[0]) && tracks.length > 1 ? tracks[1] : tracks[0];
-  return { playlist, track };
+  const nextIndex = isPlayingNow(tracks[0]) && tracks.length > 1 ? 1 : 0;
+  return { playlist, tracks, nextIndex };
+}
+
+export async function getNextTrack(): Promise<{ playlist: PlaylistSummary; track: PlaylistTrack }> {
+  const { playlist, tracks, nextIndex } = await getPlaylistQueue();
+  return { playlist, track: tracks[nextIndex] };
 }

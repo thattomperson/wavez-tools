@@ -3,6 +3,7 @@
 A bookmarklet that adds a small panel to WavezFM room pages:
 
 - **Opcheck next song**: privately asks the room bot to opcheck the next track in your active playlist and shows its reply (bot settings in `src/config.ts`)
+- **Move OP songs to end**: opchecks the next 10 tracks and moves any that are OP to the end of the playlist
 - **Next song**: shows the next track without posting
 - **Room info**: room name, users, queue, current track, votes, your queue position
 - **Playlist info**: active playlist length and first few tracks
@@ -48,6 +49,7 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/ui/` | Panel, DOM helper and styles |
 | `src/wavez/bridge.ts` | Types and helpers for the `window.WavezFM` bridge |
 | `src/wavez/api.ts` | Playlist calls through the official [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK (session cookies) |
+| `src/wavez/opcheck.ts` | Opcheck via the room bot, shared by the opcheck commands |
 | `src/wavez/socket.ts`, `bot.ts` | Private bot commands over the page's own room WebSocket |
 | `src/config.ts` | Opcheck bot user id and command prefix |
 | `src/wavez/tracks.ts` | Track links, names and "next track" logic |
