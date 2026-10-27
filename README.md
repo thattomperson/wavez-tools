@@ -2,7 +2,8 @@
 
 A bookmarklet that adds a small panel to WavezFM room pages. The top of the panel always shows
 the next song in your active playlist and whether the room bot says it's OP (re-checked when the
-song changes). Click it for details, or collapse the panel down to just that line.
+song changes). Click it for details, or collapse the panel down to just that line. Drag the grip at
+the left of the header (or focus it and use the arrow keys) to move the panel; it remembers where you left it.
 
 Tools in the panel:
 

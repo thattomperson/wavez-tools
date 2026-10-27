@@ -5,6 +5,7 @@ import { createNextSongStore, type NextSongState } from '../wavez/next-song';
 import { trackArtist, trackTitle } from '../wavez/tracks';
 import { banner, chip, opcheckChip } from './components';
 import { h } from './dom';
+import { makeDraggable } from './drag';
 import { icon, type IconName } from './icons';
 import { css, PANEL_ID } from './styles';
 
@@ -33,6 +34,7 @@ export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}):
   const header = h('div', { class: 'wt-header' });
   const content = h('div', { class: 'wt-content' });
   panel.append(header, content);
+  const drag = makeDraggable(panel);
 
   let collapsed = false;
   let current: { tool: ScreenTool; body: HTMLElement; controller: AbortController; subtitle: HTMLElement } | null = null;
@@ -80,13 +82,14 @@ export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}):
       label,
     );
     header.className = 'wt-header';
-    header.replaceChildren(h('span', { class: `wt-dot ${tone && `wt-${tone}`}` }), text, status, toggleButton());
+    header.replaceChildren(drag.grip, h('span', { class: `wt-dot ${tone && `wt-${tone}`}` }), text, status, toggleButton());
   }
 
   function renderHeader() {
     if (current && !collapsed) {
       header.className = 'wt-header wt-in-tool';
       header.replaceChildren(
+        drag.grip,
         iconButton('back', 'Back to tools', back),
         h('div', { class: 'wt-title' }, h('b', { class: 'wt-ellipsis' }, current.tool.name), current.subtitle),
         toggleButton(),
@@ -233,6 +236,7 @@ export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}):
       for (const stop of stops.values()) stop();
       unsubscribe();
       nextSong.dispose();
+      drag.dispose();
       panel.remove();
       delete window.__wavezToolsPanel;
     },
