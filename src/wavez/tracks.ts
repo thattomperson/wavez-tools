@@ -10,7 +10,7 @@ export function trackLink(track: PlaylistTrack): string {
   }
   const id = String(track.sourceId);
   if (/^https?:/.test(id)) return id;
-  if (track.source === 'youtube') return `https://youtu.be/${id}`;
+  if (track.source === 'youtube') return `https://www.youtube.com/watch?v=${id}`;
   if (track.source === 'soundcloud') {
     return /^\d+$/.test(id)
       ? `https://api.soundcloud.com/tracks/${id}`

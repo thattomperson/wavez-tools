@@ -3,6 +3,7 @@
 import { commands } from './commands';
 import { getBridge } from './wavez/bridge';
 import { findPanel, mountPanel } from './ui/panel';
+import { installSocketHook } from './wavez/socket';
 
 const existing = findPanel();
 if (existing) {
@@ -10,5 +11,6 @@ if (existing) {
 } else if (!getBridge()) {
   alert('WavezFM bridge not found. Open a wavez.fm room page first.');
 } else {
+  installSocketHook();
   mountPanel(commands);
 }
