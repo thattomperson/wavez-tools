@@ -11,6 +11,11 @@ export interface ScreenContext {
   nextSong: NextSongStore;
 }
 
+export interface ToggleContext {
+  /** The next song and its opcheck, shared with the header pill. */
+  nextSong: NextSongStore;
+}
+
 interface ToolBase {
   name: string;
   /** One line under the name in the tool list. */
@@ -33,7 +38,7 @@ export interface ToggleTool extends ToolBase {
   /** Blurb shown while it's on. */
   onBlurb: string;
   /** Starts the behaviour and returns a function that stops it. */
-  enable(): () => void;
+  enable(ctx: ToggleContext): () => void;
 }
 
 export type Tool = ScreenTool | ToggleTool;
