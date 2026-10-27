@@ -12,8 +12,11 @@ ${P} *{box-sizing:border-box}
 ${P}.wt-collapsed{border-radius:999px}
 ${P} button{font:inherit;color:inherit;margin:0}
 ${P} :focus-visible{outline:2px solid #8fb0ff;outline-offset:2px}
-${P} .wt-header{display:flex;align-items:center;gap:8px;min-height:46px;padding:6px 6px 6px 12px}
-${P} .wt-header.wt-in-tool{padding-left:6px}
+${P} .wt-header{display:flex;align-items:center;gap:8px;min-height:46px;padding:6px 6px 6px 2px}
+${P} .wt-grip{width:20px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  margin-right:-4px;padding:0;border:0;border-radius:6px;background:none;color:#6d7085;cursor:grab;touch-action:none}
+${P} .wt-grip:hover{color:#ecedf3}
+${P}.wt-dragging,${P}.wt-dragging .wt-grip{cursor:grabbing;user-select:none}
 ${P}:not(.wt-collapsed) .wt-header{border-bottom:1px solid #2c2f40}
 ${P} .wt-icon-btn{width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
   padding:0;border:0;border-radius:50%;background:#262a3d;cursor:pointer}
