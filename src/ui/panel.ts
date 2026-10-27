@@ -105,7 +105,7 @@ export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}):
     stops.delete(tool.id);
     if (on) {
       try {
-        stops.set(tool.id, tool.enable());
+        stops.set(tool.id, tool.enable({ nextSong }));
       } catch (err) {
         console.warn(`WavezFM Tools: ${tool.name} failed to start`, err);
       }

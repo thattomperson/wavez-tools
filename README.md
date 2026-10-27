@@ -10,7 +10,11 @@ Tools in the panel:
 - **Next song details**: play counts and last played for the next song (bot settings in `src/config.ts`)
 - **Room info**: room name, users, queue, current track, votes, your queue position
 - **Playlist info**: active playlist length and first tracks
-- **AutoWoot** (switch): woots every song. Remembered between runs; stops when the panel is closed
+- **AutoWoot** (switch): woots every song
+- **Auto-move OP songs** (switch): whenever the next song is OP, moves it to the end of the playlist.
+  Stops after 10 in a row until a song passes
+
+Switches are remembered between runs and stop when the panel is closed.
 
 ## Install
 
