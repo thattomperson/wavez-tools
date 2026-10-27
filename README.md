@@ -1,12 +1,16 @@
 # WavezFM Tools
 
-A bookmarklet that adds a small panel to WavezFM room pages:
+A bookmarklet that adds a small panel to WavezFM room pages. The top of the panel always shows
+the next song in your active playlist and whether the room bot says it's OP (re-checked when the
+song changes). Click it for details, or collapse the panel down to just that line.
 
-- **Opcheck next song**: privately asks the room bot to opcheck the next track in your active playlist and shows its reply (bot settings in `src/config.ts`)
-- **Move OP songs to end**: opchecks the next 10 tracks and moves any that are OP to the end of the playlist
-- **Next song**: shows the next track without posting
+Tools in the panel:
+
+- **Queue check**: opchecks the next 10 tracks and moves any that are OP to the end of the playlist
+- **Next song details**: play counts and last played for the next song (bot settings in `src/config.ts`)
 - **Room info**: room name, users, queue, current track, votes, your queue position
-- **Playlist info**: active playlist length and first few tracks
+- **Playlist info**: active playlist length and first tracks
+- **AutoWoot** (switch): woots every song. Remembered between runs; stops when the panel is closed
 
 ## Install
 
@@ -45,8 +49,9 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | Path | What lives there |
 | --- | --- |
 | `src/main.ts` | Entry point: toggles the panel |
-| `src/commands/` | One file per button, registered in `commands/index.ts` |
-| `src/ui/` | Panel, DOM helper and styles |
+| `src/tools/` | One file per tool, registered in `tools/index.ts` |
+| `src/ui/` | Panel, shared components, icons, DOM helper and styles |
+| `src/wavez/next-song.ts` | Next song + opcheck shown in the panel header |
 | `src/wavez/bridge.ts` | Types and helpers for the `window.WavezFM` bridge |
 | `src/wavez/api.ts` | Playlist calls through the official [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK (session cookies) |
 | `src/wavez/opcheck.ts` | Opcheck via the room bot, shared by the opcheck commands |
@@ -55,22 +60,34 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/wavez/tracks.ts` | Track links, names and "next track" logic |
 | `src/lib/` | Small shared helpers |
 
-## Adding a button
+## Adding a tool
 
-Create `src/commands/my-command.ts`:
+A tool either opens its own screen or is an on/off switch. A screen tool, `src/tools/my-tool.ts`:
 
 ```ts
 import { requireState } from '../wavez/bridge';
-import type { Command } from './types';
+import { h } from '../ui/dom';
+import type { ScreenTool } from './types';
 
-export const myCommand: Command = {
-  label: 'My button',
-  run({ show }) {
-    show(`Room: ${requireState().room.name}`);
+export const myTool: ScreenTool = {
+  kind: 'screen',
+  name: 'My tool',
+  blurb: 'One line for the tool list',
+  glyph: 'M',
+  open({ body, setSubtitle }) {
+    setSubtitle(requireState().room.name);
+    body.replaceChildren(h('div', { class: 'wt-body' }, 'Hello'));
   },
 };
 ```
 
-Then add it to the `commands` array in `src/commands/index.ts`.
+`open` also gets a `signal` that aborts when the user leaves the screen, so stop work and
+unsubscribe from room events with it. Shared pieces (chips, buttons, stat tiles, key/value lists)
+are in `src/ui/components.ts`.
+
+A switch is a `ToggleTool` (`kind: 'toggle'`) with an `id` and an `enable()` that starts the
+behaviour and returns a function that stops it; see `src/tools/auto-woot.ts`.
+
+Then add it to the `tools` array in `src/tools/index.ts`.
 
 The bridge is documented in the [Room Extension API](https://github.com/WavezFM/WavezFM-Extension-API).

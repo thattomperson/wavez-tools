@@ -19,10 +19,17 @@ export function trackLink(track: PlaylistTrack): string {
   return id;
 }
 
+export function trackTitle(track: PlaylistTrack): string {
+  return track.customTitle || track.title;
+}
+
+export function trackArtist(track: PlaylistTrack): string {
+  return track.customArtist || track.artist || '';
+}
+
 export function trackName(track: PlaylistTrack): string {
-  const title = track.customTitle || track.title;
-  const artist = track.customArtist || track.artist;
-  return artist ? `${artist} - ${title}` : title;
+  const artist = trackArtist(track);
+  return artist ? `${artist} - ${trackTitle(track)}` : trackTitle(track);
 }
 
 // Is this playlist track the one I'm playing right now?
