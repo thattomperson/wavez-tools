@@ -14,6 +14,9 @@ Tools in the panel:
 - **AutoWoot** (switch): woots every song
 - **Auto-move OP songs** (switch): whenever the next song is OP, moves it to the end of the playlist.
   Stops after 10 in a row until a song passes
+- **Auto-join when queue is empty** (switch): joins the DJ queue when nobody else is waiting
+- **Auto-leave when others are queued** (switch): leaves the queue once someone else is waiting,
+  but never while your song is playing. With both on, you fill gaps without holding anyone up
 
 Switches are remembered between runs and stop when the panel is closed.
 
