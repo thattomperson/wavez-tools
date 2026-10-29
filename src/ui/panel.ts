@@ -220,8 +220,10 @@ export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}):
 
   // --- lifecycle --------------------------------------------------------------
 
+  // Read the saved list once: each setToggle below re-saves it as it goes.
+  const saved = loadToggles();
   for (const tool of tools) {
-    if (tool.kind === 'toggle' && loadToggles().includes(tool.id)) setToggle(tool, true);
+    if (tool.kind === 'toggle' && saved.includes(tool.id)) setToggle(tool, true);
   }
   const unsubscribe = nextSong.subscribe(() => {
     if (collapsed || !current) renderHeader();
