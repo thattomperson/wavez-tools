@@ -13,6 +13,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 - AutoWoot no longer woots over your vote. It woots each song at most once, and leaves a song
   alone once you've voted on it yourself, so a manual meh sticks.
+  ([#8](https://github.com/thattomperson/wavez-tools/pull/8))
 
 ## 2026-10-29
 
