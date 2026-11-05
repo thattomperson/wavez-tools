@@ -14,11 +14,25 @@ export const autoWoot: ToggleTool = {
   enable() {
     const bridge = requireBridge();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Each song gets at most one automatic woot, and none once you've voted on
+    // it yourself, so a manual meh sticks.
+    let handledKey: string | null = null;
     const woot = () => {
       const state = bridge.room.getState();
-      if (!state?.playback || !state.votes.canVote || state.votes.clientVote === 'woot') return;
+      const playback = state?.playback;
+      if (!state || !playback || playback.playbackKey === handledKey) return;
+      if (state.votes.clientVote !== null) {
+        handledKey = playback.playbackKey;
+        return;
+      }
+      if (!state.votes.canVote) return;
+      handledKey = playback.playbackKey;
       const result = bridge.actions.vote('woot');
-      if (!result.ok) console.warn(`WavezFM Tools: AutoWoot vote failed (${result.code})`);
+      if (!result.ok) {
+        // Let the next playback event try again.
+        handledKey = null;
+        console.warn(`WavezFM Tools: AutoWoot vote failed (${result.code})`);
+      }
     };
     const schedule = () => {
       clearTimeout(timer);

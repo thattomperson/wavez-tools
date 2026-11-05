@@ -9,6 +9,11 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 - `CLAUDE.md` with project guidance, and this changelog, backfilled from history.
 
+### Fixed
+
+- AutoWoot no longer woots over your vote. It woots each song at most once, and leaves a song
+  alone once you've voted on it yourself, so a manual meh sticks.
+
 ## 2026-10-29
 
 ### Added
