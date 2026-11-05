@@ -7,6 +7,9 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- `/wt` chat commands: `/wt autowoot off`, `/wt status`, `/wt next` and the like flip the panel's
+  switches and answer in a small note, without posting to the room. They also work in the pop-out
+  chat window if it's opened after the bookmark is clicked.
 - `CLAUDE.md` with project guidance, and this changelog, backfilled from history.
 
 ### Fixed

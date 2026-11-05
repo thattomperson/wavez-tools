@@ -1,7 +1,7 @@
 // The floating panel: a header pill showing the next song's opcheck, a list
 // of tools, and a screen per tool with a back button. Collapses to the pill.
 import type { ScreenTool, ToggleTool, Tool } from '../tools';
-import { createNextSongStore, type NextSongState } from '../wavez/next-song';
+import { createNextSongStore, type NextSongState, type NextSongStore } from '../wavez/next-song';
 import { trackArtist, trackTitle } from '../wavez/tracks';
 import { banner, chip, opcheckChip } from './components';
 import { h } from './dom';
@@ -11,6 +11,20 @@ import { css, PANEL_ID } from './styles';
 
 export interface PanelHandle {
   unmount(): void;
+}
+
+/** Lets code outside the panel (such as chat commands) read and flip switches. */
+export interface PanelControls {
+  nextSong: NextSongStore;
+  isOn(tool: ToggleTool): boolean;
+  setToggle(tool: ToggleTool, on: boolean): void;
+}
+
+export interface PanelOptions {
+  /** Tool opened by clicking the next-song line in the header. */
+  pillTool?: ScreenTool;
+  /** Runs once the panel is up; the returned function runs when it closes. */
+  onMount?: (controls: PanelControls) => () => void;
 }
 
 declare global {
@@ -28,7 +42,7 @@ export function findPanel(): PanelHandle | null {
   return stale && { unmount: () => stale.remove() };
 }
 
-export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}): PanelHandle {
+export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle {
   const nextSong = createNextSongStore();
   const panel = h('div', { id: PANEL_ID }, h('style', null, css));
   const header = h('div', { class: 'wt-header' });
@@ -231,8 +245,19 @@ export function mountPanel(tools: Tool[], opts: { pillTool?: ScreenTool } = {}):
   render();
   document.body.appendChild(panel);
 
+  const stopExtras = opts.onMount?.({
+    nextSong,
+    isOn: (tool) => stops.has(tool.id),
+    setToggle(tool, on) {
+      if (stops.has(tool.id) === on) return;
+      setToggle(tool, on);
+      if (!current) renderContent();
+    },
+  });
+
   const handle: PanelHandle = {
     unmount() {
+      stopExtras?.();
       current?.controller.abort();
       // Toggles stop with the panel but stay remembered for the next open.
       for (const stop of stops.values()) stop();

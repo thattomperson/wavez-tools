@@ -54,6 +54,7 @@ function watchQueue(
 export const autoJoin: ToggleTool = {
   kind: 'toggle',
   id: 'auto-join',
+  command: 'autojoin',
   name: 'Auto-join when queue is empty',
   blurb: 'Off',
   onBlurb: 'On: joins the queue when nobody else is waiting',
@@ -76,6 +77,7 @@ export const autoJoin: ToggleTool = {
 export const autoLeave: ToggleTool = {
   kind: 'toggle',
   id: 'auto-leave',
+  command: 'autoleave',
   name: 'Auto-leave when others are queued',
   blurb: 'Off',
   onBlurb: "On: leaves the queue when someone else is waiting (not while you're playing)",

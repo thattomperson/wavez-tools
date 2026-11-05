@@ -16,6 +16,8 @@ export interface Packet<T = unknown> {
 interface SocketHook {
   socket: WebSocket | null;
   waiters: Array<(socket: WebSocket) => void>;
+  /** Returns true to keep an outgoing packet from being sent. */
+  filter?: ((data: unknown) => boolean) | null;
 }
 
 declare global {
@@ -46,6 +48,7 @@ function getHook(): SocketHook {
       hook.socket = this;
       hook.waiters.splice(0).forEach((resolve) => resolve(this));
     }
+    if (hook.filter?.(data)) return;
     return originalSend.call(this, data);
   };
   return hook;
@@ -54,6 +57,11 @@ function getHook(): SocketHook {
 /** Start watching for the room socket. Call early so it's found by the time it's needed. */
 export function installSocketHook(): void {
   getHook();
+}
+
+/** Drop outgoing packets that `filter` returns true for. Pass null to stop. */
+export function setSendFilter(filter: ((data: unknown) => boolean) | null): void {
+  getHook().filter = filter;
 }
 
 export function getRoomSocket(timeoutMs = 30_000): Promise<WebSocket> {
