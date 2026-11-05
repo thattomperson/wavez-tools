@@ -9,7 +9,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 - `/wt` chat commands: `/wt autowoot off`, `/wt status`, `/wt next` and the like flip the panel's
   switches and answer in a small note, without posting to the room. They also work in the pop-out
-  chat window if it's opened after the bookmark is clicked.
+  chat window if it's opened after the bookmark is clicked. ([#9](https://github.com/thattomperson/wavez-tools/pull/9))
 - `CLAUDE.md` with project guidance, and this changelog, backfilled from history.
 
 ### Fixed
