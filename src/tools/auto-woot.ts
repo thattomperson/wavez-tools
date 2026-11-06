@@ -7,6 +7,7 @@ const WOOT_DELAY_MS = 1500;
 export const autoWoot: ToggleTool = {
   kind: 'toggle',
   id: 'auto-woot',
+  command: 'autowoot',
   name: 'AutoWoot',
   blurb: 'Off',
   onBlurb: 'On: woots every song for you',

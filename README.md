@@ -20,6 +20,20 @@ Tools in the panel:
 
 Switches are remembered between runs and stop when the panel is closed.
 
+## Chat commands
+
+While the panel is open you can also type commands into the room chat. They're never posted to
+the room; the answer shows up as a small note above the chat box.
+
+- `/wt autowoot on|off`, `/wt automove on|off`, `/wt autojoin on|off`, `/wt autoleave on|off`:
+  flip a switch (leave off `on|off` to toggle it)
+- `/wt status`: which switches are on
+- `/wt next`: your next song and its opcheck
+- `/wt help`: the list above
+
+The commands also work in the pop-out chat window, as long as you open the pop-out after
+clicking the bookmark. If it was already open, close it and pop it out again.
+
 ## Install
 
 Open the GitHub Pages site for this repo (`https://<owner>.github.io/wavez-tools/`) and drag the
@@ -57,6 +71,7 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | Path | What lives there |
 | --- | --- |
 | `src/main.ts` | Entry point: toggles the panel |
+| `src/chat/` | `/wt` chat commands, and catching them in the room chat and the pop-out chat |
 | `src/tools/` | One file per tool, registered in `tools/index.ts` |
 | `src/ui/` | Panel, shared components, icons, DOM helper and styles |
 | `src/wavez/next-song.ts` | Next song + opcheck shown in the panel header |

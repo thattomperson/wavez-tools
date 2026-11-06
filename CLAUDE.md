@@ -41,6 +41,9 @@ has to be checked by hand by running the bookmarklet in a WavezFM room.
   (`src/wavez/socket.ts`, `bot.ts`, `opcheck.ts`). The socket is captured by wrapping
   `WebSocket.prototype.send`, so it needs the site to send a packet first. Bot id and command
   prefix live in `src/config.ts`.
+- `/wt` chat commands live in `src/chat/`. `intercept.ts` catches them on Enter in the chat box
+  (and as a fallback on the outgoing socket packet), and wraps `window.open` to add the same
+  listeners to the pop-out chat window. Each switch's `command` field is its chat name.
 - Styles are scoped CSS in `src/ui/styles.ts`. Switch state is saved in localStorage under
   `wavez-tools:toggles`, panel position under `wavez-tools:position`.
 

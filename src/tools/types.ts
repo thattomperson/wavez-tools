@@ -35,6 +35,8 @@ export interface ToggleTool extends ToolBase {
   kind: 'toggle';
   /** Storage key for the remembered state. */
   id: string;
+  /** Name used with the chat command, e.g. "autowoot" for `/wt autowoot off`. */
+  command: string;
   /** Blurb shown while it's on. */
   onBlurb: string;
   /** Starts the behaviour and returns a function that stops it. */

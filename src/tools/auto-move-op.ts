@@ -14,6 +14,7 @@ const MAX_IN_A_ROW = 10;
 export const autoMoveOp: ToggleTool = {
   kind: 'toggle',
   id: 'auto-move-op',
+  command: 'automove',
   name: 'Auto-move OP songs',
   blurb: 'Off',
   onBlurb: "On: moves the next song to the end if it's OP",
