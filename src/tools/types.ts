@@ -41,6 +41,8 @@ export interface ToggleTool extends ToolBase {
   onBlurb: string;
   /** Starts the behaviour and returns a function that stops it. */
   enable(ctx: ToggleContext): () => void;
+  /** Extra chat subcommands, e.g. `test` for `/wt notify test`. Each returns lines to show. */
+  subcommands?: Record<string, { help: string; run(): string[] }>;
 }
 
 export type Tool = ScreenTool | ToggleTool;

@@ -34,6 +34,8 @@ the room; the answer shows up as a small note above the chat box.
 - `/wt autowoot on|off`, `/wt automove on|off`, `/wt autojoin on|off`, `/wt autoleave on|off`,
   `/wt notify on|off`:
   flip a switch (leave off `on|off` to toggle it)
+- `/wt notify test`: says whether notifications are allowed, what the last chat message looked
+  like and why it did or didn't notify, then sends a test notification after 5 seconds
 - `/wt status`: which switches are on
 - `/wt next`: your next song and its opcheck
 - `/wt help`: the list above
