@@ -17,6 +17,12 @@ Tools in the panel:
 - **Auto-join when queue is empty** (switch): joins the DJ queue when nobody else is waiting
 - **Auto-leave when others are queued** (switch): leaves the queue once someone else is waiting,
   but never while your song is playing. With both on, you fill gaps without holding anyone up
+- **Desktop notifications** (switch): a desktop notification when someone @mentions you (your
+  username or display name, `@everyone`/`@here`/`@room`, or `@staff` if you're a bouncer or above), or when the room bot sends you a
+  notice or a private reply you didn't ask the panel for. Only fires while you're in another tab
+  or app. The browser asks for permission the first time you turn it on. Browsers don't allow
+  buttons on notifications from a web page, so a bot message's buttons are listed in the
+  notification instead; click it to get back to the room with a card that has the real buttons
 
 Switches are remembered between runs and stop when the panel is closed.
 
@@ -25,7 +31,8 @@ Switches are remembered between runs and stop when the panel is closed.
 While the panel is open you can also type commands into the room chat. They're never posted to
 the room; the answer shows up as a small note above the chat box.
 
-- `/wt autowoot on|off`, `/wt automove on|off`, `/wt autojoin on|off`, `/wt autoleave on|off`:
+- `/wt autowoot on|off`, `/wt automove on|off`, `/wt autojoin on|off`, `/wt autoleave on|off`,
+  `/wt notify on|off`:
   flip a switch (leave off `on|off` to toggle it)
 - `/wt status`: which switches are on
 - `/wt next`: your next song and its opcheck
@@ -74,6 +81,7 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/chat/` | `/wt` chat commands, and catching them in the room chat and the pop-out chat |
 | `src/tools/` | One file per tool, registered in `tools/index.ts` |
 | `src/ui/` | Panel, shared components, icons, DOM helper and styles |
+| `src/ui/notice.ts` | Card with a bot message's buttons, shown when its notification is clicked |
 | `src/wavez/next-song.ts` | Next song + opcheck shown in the panel header |
 | `src/wavez/bridge.ts` | Types and helpers for the `window.WavezFM` bridge |
 | `src/wavez/api.ts` | Playlist calls through the official [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK (session cookies) |

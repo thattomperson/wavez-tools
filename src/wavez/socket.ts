@@ -83,6 +83,64 @@ export function getRoomSocket(timeoutMs = 30_000): Promise<WebSocket> {
   });
 }
 
+function parsePacket(data: unknown): Packet | null {
+  if (typeof data !== 'string') return null;
+  try {
+    const packet = JSON.parse(data);
+    return typeof packet?.event === 'string' ? (packet as Packet) : null;
+  } catch {
+    return null;
+  }
+}
+
+// How long to wait before looking for the room socket again after a failed try.
+const RETRY_MS = 5000;
+
+/**
+ * Call `handler` for every packet the room socket receives, following the
+ * site onto a new socket when it reconnects. Returns a function that stops it.
+ */
+export function onIncoming(handler: (packet: Packet) => void): () => void {
+  let stopped = false;
+  let current: WebSocket | null = null;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+
+  const onMessage = (message: MessageEvent) => {
+    const packet = parsePacket(message.data);
+    if (packet) handler(packet);
+  };
+  const detach = () => {
+    current?.removeEventListener('message', onMessage);
+    current?.removeEventListener('close', onClose);
+    current = null;
+  };
+  const attach = () => {
+    if (stopped) return;
+    getRoomSocket().then(
+      (socket) => {
+        if (stopped) return;
+        current = socket;
+        socket.addEventListener('message', onMessage);
+        socket.addEventListener('close', onClose);
+      },
+      () => {
+        retry = setTimeout(attach, RETRY_MS);
+      },
+    );
+  };
+  function onClose() {
+    detach();
+    attach();
+  }
+
+  attach();
+  return () => {
+    stopped = true;
+    clearTimeout(retry);
+    detach();
+  };
+}
+
 export function makeRequestId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -105,14 +163,8 @@ export async function request<TReply>(
       socket.removeEventListener('message', onMessage);
     };
     const onMessage = (message: MessageEvent) => {
-      if (typeof message.data !== 'string') return;
-      let packet: Packet;
-      try {
-        packet = JSON.parse(message.data);
-      } catch {
-        return;
-      }
-      if (match(packet)) {
+      const packet = parsePacket(message.data);
+      if (packet && match(packet)) {
         cleanup();
         resolve(packet);
       }
