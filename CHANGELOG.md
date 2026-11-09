@@ -7,6 +7,10 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Desktop notifications** switch (`/wt notify on|off`): notifies you when someone @mentions
+  you, or when the room bot sends you a notice or private reply, while you're in another tab or
+  app. A bot message's buttons are listed in the notification; clicking it brings you back to the
+  room with a card that has the working buttons.
 - `/wt` chat commands: `/wt autowoot off`, `/wt status`, `/wt next` and the like flip the panel's
   switches and answer in a small note, without posting to the room. They also work in the pop-out
   chat window if it's opened after the bookmark is clicked. ([#9](https://github.com/thattomperson/wavez-tools/pull/9))

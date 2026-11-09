@@ -1,5 +1,6 @@
 // Types and helpers for window.WavezFM, the Room Extension API (version "1").
 // https://github.com/WavezFM/WavezFM-Extension-API
+import type { BotEmbed } from './bot';
 
 export interface Playback {
   playbackKey: string;
@@ -69,6 +70,19 @@ export interface RoomState {
     joinQueue: boolean;
     sendChat: boolean;
   };
+}
+
+/** A room chat message, as sent with `chat_message` (the fields this script reads). */
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  displayUsername?: string | null;
+  content: string;
+  role?: string;
+  ephemeral?: boolean;
+  targetUserIds?: string[];
+  embed?: BotEmbed | null;
 }
 
 export type RoomEvent =
