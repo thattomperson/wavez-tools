@@ -20,6 +20,20 @@ const SEEN_MAX = 200;
 const NOTICE_ID = 'wavez-tools-notice';
 const PANEL_ID = 'wavez-tools-panel';
 
+// What the switch last saw, for `/wt notify test`.
+const diag = {
+  running: false,
+  chatEvents: 0,
+  lastPayload: null as string | null,
+  lastVerdict: null as string | null,
+};
+const TEST_DELAY_MS = 5000;
+const DUPLICATE = 'skipped: already handled';
+
+// Every step is logged to the console so a missing notification can be traced.
+// Filter the console by "[notify]" to see just these.
+const log = (...args: unknown[]) => console.log('WavezFM Tools [notify]', ...args);
+
 export const notifications: ToggleTool = {
   kind: 'toggle',
   id: 'notifications',
@@ -28,13 +42,22 @@ export const notifications: ToggleTool = {
   blurb: 'Off',
   onBlurb: 'On: @mentions and bot messages while you’re away',
   glyph: '@',
+  subcommands: {
+    test: {
+      help: 'checks notifications and sends a test one in 5 seconds',
+      run: runTest,
+    },
+  },
   enable() {
     if (typeof Notification === 'undefined') throw new Error('This browser has no desktop notifications.');
     if (Notification.permission === 'denied') {
       throw new Error('Notifications are blocked for wavez.fm. Allow them in the site settings and try again.');
     }
     // Needs a click or keypress, which the switch and /wt command both are.
-    if (Notification.permission === 'default') void Notification.requestPermission();
+    log('switch on, permission:', Notification.permission);
+    if (Notification.permission === 'default') {
+      void Notification.requestPermission().then((result) => log('permission answer:', result));
+    }
 
     const bridge = requireBridge();
     const seen = new Set<string>();
@@ -48,8 +71,11 @@ export const notifications: ToggleTool = {
       return true;
     };
 
-    const notify = (key: string, title: string, lines: string[], buttons: NoticeButton[]) => {
-      if (Notification.permission !== 'granted' || isWatching()) return;
+    const notify = (key: string, title: string, lines: string[], buttons: NoticeButton[]): string => {
+      log('notify?', { title, lines, buttons: buttons.map((b) => b.label) });
+      if (Notification.permission !== 'granted') return `not shown: permission is "${Notification.permission}"`;
+      if (isWatching()) return 'not shown: you were looking at the room';
+      log('showing notification', title);
       let body = clip(lines.join('\n'));
       const live = buttons.filter((b) => !b.disabled);
       if (live.length) body += `\nClick to answer: ${live.map((b) => b.label).join(' · ')}`;
@@ -61,35 +87,57 @@ export const notifications: ToggleTool = {
         n.close();
         if (buttons.length) showNotice({ title, lines, buttons });
       };
+      return 'notified';
     };
 
     const onChat = (message: ChatMessage) => {
+      const verdict = checkChat(message);
+      log('→', verdict);
+      // The same message often comes through the bridge and the socket; keep the first verdict.
+      if (verdict !== DUPLICATE) diag.lastVerdict = verdict;
+    };
+    const checkChat = (message: ChatMessage): string => {
       const state = bridge.room.getState();
       const me = state?.currentUser;
-      if (!state || !me || message.userId === me.id || !firstSighting(message.id)) return;
+      log('chat message', message, 'me:', me);
+      if (!state || !me) return 'skipped: not signed in to the room';
+      if (message.userId === me.id) return 'skipped: your own message';
+      if (!firstSighting(message.id)) return DUPLICATE;
       const from = message.displayUsername || message.username || 'Someone';
       const mentioned = mentionsMe(message.content ?? '', state);
+      log('mentions me:', mentioned);
 
       if (isBot(message)) {
+        log('is bot message', {
+          targetUserIds: message.targetUserIds,
+          ephemeral: message.ephemeral,
+          embedOwner: message.embed?.ownerUserId,
+          buttons: message.embed?.buttons?.length ?? 0,
+        });
         const forMe =
           mentioned ||
           message.targetUserIds?.includes(me.id) ||
           message.embed?.ownerUserId === me.id ||
           (message.ephemeral && !message.targetUserIds?.length);
-        if (!forMe) return;
+        log('bot message for me:', !!forMe);
+        if (!forMe) return 'skipped: bot message not meant for you';
         const { lines, buttons } = fromBot(message.userId, message.content, message.embed);
-        notify(message.id, from, lines, buttons);
-      } else if (mentioned) {
-        notify(message.id, `${from} mentioned you`, [message.content], []);
+        return notify(message.id, from, lines, buttons);
       }
+      if (mentioned) return notify(message.id, `${from} mentioned you`, [message.content], []);
+      log('not a bot message');
+      return 'skipped: no mention of you';
     };
 
     const onPacket = (packet: Packet) => {
       if (packet.event === 'bot_private_reply') {
         const reply = packet.payload as BotPrivateReply | null;
-        if (!reply || isOwnCommand(reply.commandId) || !firstSighting(reply.id)) return;
+        log('bot private reply', reply);
+        if (!reply) return;
+        if (isOwnCommand(reply.commandId)) return log('→ skipped: reply to our own command (opcheck etc.)');
+        if (!firstSighting(reply.id)) return log('→', DUPLICATE);
         const { lines, buttons } = fromBot(reply.botUserId, reply.content, reply.embed);
-        notify(reply.id ?? reply.commandId, 'Room bot', lines, buttons);
+        log('→', notify(reply.id ?? reply.commandId, 'Room bot', lines, buttons));
         return;
       }
       // The bridge may not pass on every kind of chat (live-only bot notices,
@@ -97,16 +145,34 @@ export const notifications: ToggleTool = {
       // from notifying twice.
       if (packet.event.includes('chat')) {
         const message = asChatMessage(packet.payload);
-        if (message) onChat(message);
+        log(`socket packet "${packet.event}"`, packet.payload, message ? '' : '(not a chat message)');
+        if (message) {
+          if (!seen.has(message.id)) seenChat(`socket ${packet.event}`, packet.payload);
+          onChat(message);
+        }
       }
+    };
+    const seenChat = (source: string, payload: unknown) => {
+      diag.chatEvents += 1;
+      diag.lastPayload = `${source}: ${describePayload(payload)}`;
     };
 
     const unsubscribe = bridge.room.subscribe('chat_message', (payload) => {
+      seenChat('bridge', payload);
+      log('bridge chat_message', payload);
       const message = asChatMessage(payload);
       if (message) onChat(message);
+      else {
+        diag.lastVerdict = 'skipped: could not read the message';
+        log('→', diag.lastVerdict);
+      }
     });
     const stopSocket = onIncoming(onPacket);
+    log('listening to the bridge and the room socket');
+    diag.running = true;
     return () => {
+      diag.running = false;
+      log('switch off');
       unsubscribe();
       stopSocket();
       open.forEach((n) => n.close());
@@ -115,12 +181,64 @@ export const notifications: ToggleTool = {
   },
 };
 
+type Loose = Record<string, unknown> | null | undefined;
+const str = (...values: unknown[]) => values.find((v): v is string => typeof v === 'string');
+
+// The bridge's chat_message payload isn't documented, so accept the likely
+// shapes: the message itself or wrapped in `message`/`chat`, with the sender
+// either flat (`userId`) or nested (`user`/`sender`).
 function asChatMessage(payload: unknown): ChatMessage | null {
-  const value = payload as { message?: unknown } | null;
-  const candidate = (value && typeof value.message === 'object' ? value.message : value) as ChatMessage | null;
-  return candidate && typeof candidate.id === 'string' && typeof candidate.userId === 'string' && typeof candidate.content === 'string'
-    ? candidate
-    : null;
+  const outer = payload as Loose;
+  const wrapped = (outer?.message ?? outer?.chat) as Loose;
+  const m = (wrapped && typeof wrapped === 'object' ? wrapped : outer) as Loose;
+  if (!m || typeof m !== 'object') return null;
+  const user = (m.user ?? m.sender ?? m.author) as Loose;
+  const id = str(m.id, m.messageId, m._id);
+  const userId = str(m.userId, m.senderId, user?.id, user?.userId);
+  const content = str(m.content, m.text, m.message, m.body);
+  if (!id || !userId || content === undefined) return null;
+  return {
+    ...(m as object),
+    id,
+    userId,
+    content,
+    username: str(m.username, user?.username) ?? '',
+    displayUsername: str(m.displayUsername, user?.displayUsername, user?.displayName) ?? null,
+    role: str(m.role, m.roomRole, user?.role),
+  } as ChatMessage;
+}
+
+/** Field names (and a little of the text) of a payload, for `/wt notify test`. */
+function describePayload(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') return typeof payload;
+  const keys = (value: Loose) => Object.keys(value ?? {}).join(', ');
+  const p = payload as Record<string, unknown>;
+  const nested = ['message', 'chat', 'user', 'sender']
+    .filter((k) => p[k] && typeof p[k] === 'object')
+    .map((k) => ` ${k}{${keys(p[k] as Loose)}}`)
+    .join('');
+  return `{${keys(p)}}${nested}`;
+}
+
+function runTest(): string[] {
+  const lines: string[] = [];
+  if (typeof Notification === 'undefined') return ['This browser has no desktop notifications.'];
+  lines.push(`Switch: ${diag.running ? 'on' : 'off (turn it on with /wt notify on)'}`);
+  lines.push(`Browser permission: ${Notification.permission}`);
+  if (Notification.permission === 'denied') {
+    lines.push('Notifications are blocked for this site. Click the icon left of the address bar to allow them.');
+    return lines;
+  }
+  if (Notification.permission === 'default') void Notification.requestPermission();
+  lines.push(`Chat messages seen since it was turned on: ${diag.chatEvents}`);
+  if (diag.lastPayload) lines.push(`Last one: ${diag.lastPayload}`);
+  if (diag.lastVerdict) lines.push(`Result: ${diag.lastVerdict}`);
+  lines.push('Sending a test notification in 5 seconds. Switch to another tab now.');
+  setTimeout(() => {
+    if (Notification.permission !== 'granted') return;
+    new Notification('WavezFM Tools', { body: 'Test notification. If you see this, notifications work.', icon: siteIcon() });
+  }, TEST_DELAY_MS);
+  return lines;
 }
 
 function isBot(message: ChatMessage): boolean {

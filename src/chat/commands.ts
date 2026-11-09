@@ -19,7 +19,10 @@ export function createCommandRunner(tools: Tool[], panel: PanelControls): Comman
 
   const help = () => [
     'WavezFM Tools commands:',
-    ...toggles.map((t) => `${COMMAND_PREFIX} ${t.command} on|off: ${t.name}`),
+    ...toggles.flatMap((t) => [
+      `${COMMAND_PREFIX} ${t.command} on|off: ${t.name}`,
+      ...Object.entries(t.subcommands ?? {}).map(([name, sub]) => `${COMMAND_PREFIX} ${t.command} ${name}: ${sub.help}`),
+    ]),
     `${COMMAND_PREFIX} status: which switches are on`,
     `${COMMAND_PREFIX} next: your next song and its opcheck`,
   ];
@@ -45,6 +48,8 @@ export function createCommandRunner(tools: Tool[], panel: PanelControls): Comman
 
     const tool = toggles.find((t) => t.command === sub);
     if (!tool) return [`Unknown command "${sub}".`, ...help()];
+    const sub2 = arg !== undefined ? tool.subcommands?.[arg] : undefined;
+    if (sub2 && rest.length === 0) return sub2.run();
     if (rest.length > 0) return [`Usage: ${COMMAND_PREFIX} ${tool.command} on|off`];
 
     let on: boolean;

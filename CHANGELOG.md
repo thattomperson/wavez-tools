@@ -7,6 +7,21 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- `/wt notify test`: checks why desktop notifications aren't showing (browser permission, the
+  last chat message seen and what happened to it) and sends a test notification after 5 seconds.
+  ([#11](https://github.com/thattomperson/wavez-tools/pull/11))
+- Desktop notifications log each step to the browser console (filter by `[notify]`): every chat
+  message seen, whether it mentions you, whether it's a bot message, and why it did or didn't
+  notify. ([#11](https://github.com/thattomperson/wavez-tools/pull/11))
+
+### Fixed
+
+- Desktop notifications read more shapes of chat message, in case the room sends the sender or
+  text under different names.
+
+## 2026-11-09
+### Added
+
 - **Desktop notifications** switch (`/wt notify on|off`): notifies you when someone @mentions
   you (including `@staff` if you're staff), or when the room bot sends you a notice or private reply, while you're in another tab or
   app. A bot message's buttons are listed in the notification; clicking it brings you back to the
