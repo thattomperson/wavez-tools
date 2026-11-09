@@ -30,6 +30,10 @@ const diag = {
 const TEST_DELAY_MS = 5000;
 const DUPLICATE = 'skipped: already handled';
 
+// Every step is logged to the console so a missing notification can be traced.
+// Filter the console by "[notify]" to see just these.
+const log = (...args: unknown[]) => console.log('WavezFM Tools [notify]', ...args);
+
 export const notifications: ToggleTool = {
   kind: 'toggle',
   id: 'notifications',
@@ -50,7 +54,10 @@ export const notifications: ToggleTool = {
       throw new Error('Notifications are blocked for wavez.fm. Allow them in the site settings and try again.');
     }
     // Needs a click or keypress, which the switch and /wt command both are.
-    if (Notification.permission === 'default') void Notification.requestPermission();
+    log('switch on, permission:', Notification.permission);
+    if (Notification.permission === 'default') {
+      void Notification.requestPermission().then((result) => log('permission answer:', result));
+    }
 
     const bridge = requireBridge();
     const seen = new Set<string>();
@@ -65,8 +72,10 @@ export const notifications: ToggleTool = {
     };
 
     const notify = (key: string, title: string, lines: string[], buttons: NoticeButton[]): string => {
+      log('notify?', { title, lines, buttons: buttons.map((b) => b.label) });
       if (Notification.permission !== 'granted') return `not shown: permission is "${Notification.permission}"`;
       if (isWatching()) return 'not shown: you were looking at the room';
+      log('showing notification', title);
       let body = clip(lines.join('\n'));
       const live = buttons.filter((b) => !b.disabled);
       if (live.length) body += `\nClick to answer: ${live.map((b) => b.label).join(' · ')}`;
@@ -83,38 +92,52 @@ export const notifications: ToggleTool = {
 
     const onChat = (message: ChatMessage) => {
       const verdict = checkChat(message);
+      log('→', verdict);
       // The same message often comes through the bridge and the socket; keep the first verdict.
       if (verdict !== DUPLICATE) diag.lastVerdict = verdict;
     };
     const checkChat = (message: ChatMessage): string => {
       const state = bridge.room.getState();
       const me = state?.currentUser;
+      log('chat message', message, 'me:', me);
       if (!state || !me) return 'skipped: not signed in to the room';
       if (message.userId === me.id) return 'skipped: your own message';
       if (!firstSighting(message.id)) return DUPLICATE;
       const from = message.displayUsername || message.username || 'Someone';
       const mentioned = mentionsMe(message.content ?? '', state);
+      log('mentions me:', mentioned);
 
       if (isBot(message)) {
+        log('is bot message', {
+          targetUserIds: message.targetUserIds,
+          ephemeral: message.ephemeral,
+          embedOwner: message.embed?.ownerUserId,
+          buttons: message.embed?.buttons?.length ?? 0,
+        });
         const forMe =
           mentioned ||
           message.targetUserIds?.includes(me.id) ||
           message.embed?.ownerUserId === me.id ||
           (message.ephemeral && !message.targetUserIds?.length);
+        log('bot message for me:', !!forMe);
         if (!forMe) return 'skipped: bot message not meant for you';
         const { lines, buttons } = fromBot(message.userId, message.content, message.embed);
         return notify(message.id, from, lines, buttons);
       }
       if (mentioned) return notify(message.id, `${from} mentioned you`, [message.content], []);
+      log('not a bot message');
       return 'skipped: no mention of you';
     };
 
     const onPacket = (packet: Packet) => {
       if (packet.event === 'bot_private_reply') {
         const reply = packet.payload as BotPrivateReply | null;
-        if (!reply || isOwnCommand(reply.commandId) || !firstSighting(reply.id)) return;
+        log('bot private reply', reply);
+        if (!reply) return;
+        if (isOwnCommand(reply.commandId)) return log('→ skipped: reply to our own command (opcheck etc.)');
+        if (!firstSighting(reply.id)) return log('→', DUPLICATE);
         const { lines, buttons } = fromBot(reply.botUserId, reply.content, reply.embed);
-        notify(reply.id ?? reply.commandId, 'Room bot', lines, buttons);
+        log('→', notify(reply.id ?? reply.commandId, 'Room bot', lines, buttons));
         return;
       }
       // The bridge may not pass on every kind of chat (live-only bot notices,
@@ -122,6 +145,7 @@ export const notifications: ToggleTool = {
       // from notifying twice.
       if (packet.event.includes('chat')) {
         const message = asChatMessage(packet.payload);
+        log(`socket packet "${packet.event}"`, packet.payload, message ? '' : '(not a chat message)');
         if (message) {
           if (!seen.has(message.id)) seenChat(`socket ${packet.event}`, packet.payload);
           onChat(message);
@@ -135,14 +159,20 @@ export const notifications: ToggleTool = {
 
     const unsubscribe = bridge.room.subscribe('chat_message', (payload) => {
       seenChat('bridge', payload);
+      log('bridge chat_message', payload);
       const message = asChatMessage(payload);
       if (message) onChat(message);
-      else diag.lastVerdict = 'skipped: could not read the message';
+      else {
+        diag.lastVerdict = 'skipped: could not read the message';
+        log('→', diag.lastVerdict);
+      }
     });
     const stopSocket = onIncoming(onPacket);
+    log('listening to the bridge and the room socket');
     diag.running = true;
     return () => {
       diag.running = false;
+      log('switch off');
       unsubscribe();
       stopSocket();
       open.forEach((n) => n.close());
