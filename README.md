@@ -18,7 +18,7 @@ Tools in the panel:
 - **Auto-leave when others are queued** (switch): leaves the queue once someone else is waiting,
   but never while your song is playing. With both on, you fill gaps without holding anyone up
 - **Desktop notifications** (switch): a desktop notification when someone @mentions you (your
-  username or display name, or `@everyone`/`@here`/`@room`), or when the room bot sends you a
+  username or display name, `@everyone`/`@here`/`@room`, or `@staff` if you're a bouncer or above), or when the room bot sends you a
   notice or a private reply you didn't ask the panel for. Only fires while you're in another tab
   or app. The browser asks for permission the first time you turn it on. Browsers don't allow
   buttons on notifications from a web page, so a bot message's buttons are listed in the

@@ -131,12 +131,16 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** True for @you (username or display name, quoted or not) and room-wide pings. */
+// Room roles that @staff pings: bouncer and up.
+const STAFF_ROLES = new Set(['bouncer', 'manager', 'cohost', 'host']);
+
+/** True for @you (username or display name, quoted or not), room-wide pings, and @staff if you're staff. */
 function mentionsMe(content: string, state: RoomState): boolean {
   const me = state.currentUser;
   if (!me) return false;
   const names = [me.username, me.displayUsername].filter(Boolean).map((n) => escapeRegExp(n.trim()));
-  const pattern = new RegExp(`@(?:"(?:${names.join('|')})"|(?:${names.join('|')})(?![\\w.-])|(?:everyone|here|room)\\b)`, 'i');
+  const groups = ['everyone', 'here', 'room', ...(STAFF_ROLES.has(me.roomRole?.toLowerCase() ?? '') ? ['staff'] : [])];
+  const pattern = new RegExp(`@(?:"(?:${names.join('|')})"|(?:${names.join('|')})(?![\\w.-])|(?:${groups.join('|')})\\b)`, 'i');
   return pattern.test(content);
 }
 

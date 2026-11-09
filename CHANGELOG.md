@@ -8,7 +8,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 ### Added
 
 - **Desktop notifications** switch (`/wt notify on|off`): notifies you when someone @mentions
-  you, or when the room bot sends you a notice or private reply, while you're in another tab or
+  you (including `@staff` if you're staff), or when the room bot sends you a notice or private reply, while you're in another tab or
   app. A bot message's buttons are listed in the notification; clicking it brings you back to the
   room with a card that has the working buttons.
   ([#10](https://github.com/thattomperson/wavez-tools/pull/10))
