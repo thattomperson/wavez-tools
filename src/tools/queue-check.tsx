@@ -24,30 +24,32 @@ async function check(ctx: ScreenContext): Promise<void> {
   if (signal.aborted) return;
   const upcoming = tracks.slice(nextIndex, nextIndex + CHECK_COUNT);
 
-  const bar = h('div');
+  const bar = <div />;
   const rows = upcoming.map((track, i) => {
     const status = chip('Waiting', 'idle');
-    const row = h(
-      'li',
-      { class: 'wt-track' },
-      h('span', { class: 'wt-track-n' }, String(i + 1)),
-      h(
-        'span',
-        { class: 'wt-track-text' },
-        h('span', { class: 'wt-ellipsis' }, trackTitle(track)),
-        h('span', { class: 'wt-ellipsis wt-muted' }, trackArtist(track)),
-      ),
-      status,
+    const row = (
+      <li class="wt-track">
+        <span class="wt-track-n">{i + 1}</span>
+        <span class="wt-track-text">
+          <span class="wt-ellipsis">{trackTitle(track)}</span>
+          <span class="wt-ellipsis wt-muted">{trackArtist(track)}</span>
+        </span>
+        {status}
+      </li>
     );
     return { track, row, status };
   });
-  const summary = h('span', { class: 'wt-grow wt-muted' });
+  const summary = <span class="wt-grow wt-muted" />;
   const recheck = button('Recheck', () => void check(ctx), { disabled: true });
   const move = button('Move to end', () => void moveToEnd(), { primary: true, disabled: true });
   body.replaceChildren(
-    h('div', { class: 'wt-progress' }, bar),
-    h('ol', { class: 'wt-tracks' }, ...rows.map((r) => r.row)),
-    h('div', { class: 'wt-footer' }, summary, recheck, move),
+    <div class="wt-progress">{bar}</div>,
+    <ol class="wt-tracks">{rows.map((r) => r.row)}</ol>,
+    <div class="wt-footer">
+      {summary}
+      {recheck}
+      {move}
+    </div>,
   );
 
   const opIds = new Set<string>();

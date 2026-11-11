@@ -49,17 +49,18 @@ has to be checked by hand by running the bookmarklet in a WavezFM room.
 
 ## Conventions
 
-- Match the surrounding code: small modules, plain DOM via the `h()` helper in `src/ui/dom.ts`,
-  shared widgets from `src/ui/components.ts`.
-- `.tsx` files compile JSX to `h()` (no React): import `h` from `src/ui/dom.ts`, use HTML attribute
-  names (`class`, `for`, `onclick`), and cast when you need a specific element type
-  (`<input /> as HTMLInputElement`). A function tag is a component that gets its attributes plus
-  `children`. `src/tools/auto-leave.tsx` is the example.
-- State that the panel shows lives in signals (`@preact/signals-core`). Give `h()` a signal as an
-  attribute value or child, or a function child that reads signals, and only that node updates;
-  don't rebuild a whole screen with `replaceChildren` on every change. The bindings stop with the
-  screen (or cog, or panel); use `watch()` from `src/ui/dom.ts` for other effects so they stop too.
-  The next-song store (`ctx.nextSong`) is itself a read-only signal.
+- Match the surrounding code: small modules, plain DOM, shared widgets from
+  `src/ui/components.tsx`.
+- Write DOM in TSX, not `h()` calls. JSX compiles to the `h()` helper in `src/ui/dom.ts` (no
+  React): import `h` from there, use HTML attribute names (`class`, `for`, `onclick`), and cast
+  when you need a specific element type (`<input /> as HTMLInputElement`). A function tag is a
+  component that gets its attributes plus `children`. Any file with markup is `.tsx`;
+  `src/tools/auto-leave.tsx` is a good example.
+- State that the panel shows lives in signals (`@preact/signals-core`). Give an attribute or child
+  a signal, or a function child that reads signals, and only that node updates; don't rebuild a
+  whole screen with `replaceChildren` on every change. The bindings stop with the screen (or cog,
+  or panel); use `watch()` from `src/ui/dom.ts` for other effects so they stop too. The next-song
+  store (`ctx.nextSong`) is itself a read-only signal.
 - Keep the bundle small; it's injected into someone else's page.
 - When you add or change a tool, update the tool list in `README.md` too.
 

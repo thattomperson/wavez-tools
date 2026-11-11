@@ -23,12 +23,13 @@ export const nextSongDetails: ScreenTool = {
     const head = () => {
       const t = track.value;
       return (
-        t &&
-        h(
-          'div',
-          { class: 'wt-track-head' },
-          h('a', { href: trackLink(t), target: '_blank', rel: 'noopener' }, trackTitle(t)),
-          h('span', { class: 'wt-muted' }, [trackArtist(t), formatDuration(t.durationMs)].filter(Boolean).join(' · ')),
+        t && (
+          <div class="wt-track-head">
+            <a href={trackLink(t)} target="_blank" rel="noopener">
+              {trackTitle(t)}
+            </a>
+            <span class="wt-muted">{[trackArtist(t), formatDuration(t.durationMs)].filter(Boolean).join(' · ')}</span>
+          </div>
         )
       );
     };
@@ -39,11 +40,12 @@ export const nextSongDetails: ScreenTool = {
       if (state.status === 'failed') return banner('err', state.error);
       const { result } = state;
       const { plays } = result;
+      const reason = result.reason ? ` ${result.reason}` : '';
       const verdict = result.blocked
-        ? banner('op', h('b', null, 'Blocked.'), result.reason ? ` ${result.reason}` : '')
+        ? banner('op', <b>Blocked.</b>, reason)
         : result.op
-          ? banner('op', h('b', null, 'Overplayed.'), result.reason ? ` ${result.reason}` : '')
-          : banner('ok', h('b', null, 'Not overplayed.'), result.reason ? ` ${result.reason}` : '');
+          ? banner('op', <b>Overplayed.</b>, reason)
+          : banner('ok', <b>Not overplayed.</b>, reason);
       return [
         verdict,
         stats([
@@ -52,18 +54,19 @@ export const nextSongDetails: ScreenTool = {
           { value: plays.month, label: 'month' },
           { value: plays.all, label: 'all time' },
         ]),
-        h('div', { class: 'wt-muted' }, `Last played ${formatAgo(result.lastPlayed)}`, result.label ? ` · ${result.label}` : ''),
+        <div class="wt-muted">
+          Last played {formatAgo(result.lastPlayed)}
+          {result.label ? ` · ${result.label}` : ''}
+        </div>,
       ];
     };
 
     body.replaceChildren(
-      h(
-        'div',
-        { class: 'wt-body' },
-        head,
-        details,
-        button('Recheck', () => nextSong.refresh(), { disabled: computed(() => status.value === 'loading') }),
-      ),
+      <div class="wt-body">
+        {head}
+        {details}
+        {button('Recheck', () => nextSong.refresh(), { disabled: computed(() => status.value === 'loading') })}
+      </div>,
     );
   },
 };

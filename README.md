@@ -87,7 +87,7 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/chat/` | `/wt` chat commands, and catching them in the room chat and the pop-out chat |
 | `src/tools/` | One file per tool, registered in `tools/index.ts` |
 | `src/ui/` | Panel, shared components, icons, DOM helper and styles |
-| `src/ui/notice.ts` | Card with a bot message's buttons, shown when its notification is clicked |
+| `src/ui/notice.tsx` | Card with a bot message's buttons, shown when its notification is clicked |
 | `src/wavez/next-song.ts` | Next song + opcheck shown in the panel header |
 | `src/wavez/bridge.ts` | Types and helpers for the `window.WavezFM` bridge |
 | `src/wavez/api.ts` | Playlist calls through the official [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK (session cookies) |
@@ -99,9 +99,9 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 
 ## Adding a tool
 
-A tool either opens its own screen or is an on/off switch. A screen tool, `src/tools/my-tool.ts`:
+A tool either opens its own screen or is an on/off switch. A screen tool, `src/tools/my-tool.tsx`:
 
-```ts
+```tsx
 import { requireState } from '../wavez/bridge';
 import { h } from '../ui/dom';
 import type { ScreenTool } from './types';
@@ -113,25 +113,25 @@ export const myTool: ScreenTool = {
   glyph: 'M',
   open({ body, setSubtitle }) {
     setSubtitle(requireState().room.name);
-    body.replaceChildren(h('div', { class: 'wt-body' }, 'Hello'));
+    body.replaceChildren(<div class="wt-body">Hello</div>);
   },
 };
 ```
 
 `open` also gets a `signal` that aborts when the user leaves the screen, so stop work and
 unsubscribe from room events with it. Shared pieces (chips, buttons, stat tiles, key/value lists)
-are in `src/ui/components.ts`.
+are in `src/ui/components.tsx`.
 
 A switch is a `ToggleTool` (`kind: 'toggle'`) with an `id` and an `enable()` that starts the
 behaviour and returns a function that stops it; see `src/tools/auto-woot.ts`.
 
-For a screen that updates live, keep the changing state in a signal from `@preact/signals-core`
-and pass it (or a function that reads it) to `h()`: only that node updates. `ctx.nextSong` is
-already a signal, so `h('b', null, computed(() => nextSong.value.status))` follows it. See
-`src/tools/room-info.ts`.
+Markup is written in TSX, which compiles to the small `h()` helper in `src/ui/dom.ts` (no React),
+with HTML attribute names like `class` and `for`.
 
-Tools can also be written as `.tsx`: JSX compiles to the same `h()` helper (no React), with HTML
-attribute names like `class` and `for`. See `src/tools/auto-leave.tsx`.
+For a screen that updates live, keep the changing state in a signal from `@preact/signals-core`
+and pass it (or a function that reads it) as an attribute or child: only that node updates.
+`ctx.nextSong` is already a signal, so `<b>{computed(() => nextSong.value.status)}</b>` follows
+it. See `src/tools/room-info.tsx`.
 
 Then add it to the `tools` array in `src/tools/index.ts`.
 

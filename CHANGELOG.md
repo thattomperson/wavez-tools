@@ -24,6 +24,10 @@ Newest first. See `CLAUDE.md` for how to add entries.
   instead of redrawing the header, the tool list or the whole screen. Flipping a switch or opening
   a cog no longer jumps focus, and Room info no longer flickers on every woot. Built on
   `@preact/signals-core` (about 2 KB gzipped).
+  ([#13](https://github.com/thattomperson/wavez-tools/pull/13))
+- All of the panel's markup (the panel itself, its widgets, the drag grip, the notice card and
+  the Queue check, Next song details, Room info and Playlist info screens) is now written in TSX
+  instead of `h()` calls. No change in behaviour.
 - Panel code can now be written in TSX, which compiles to the existing `h()` helper (no React
   added). Auto-leave's options are the first to use it.
   ([#12](https://github.com/thattomperson/wavez-tools/pull/12))
