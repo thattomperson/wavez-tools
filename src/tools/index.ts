@@ -1,5 +1,6 @@
 import { autoMoveOp } from './auto-move-op';
-import { autoJoin, autoLeave } from './auto-queue';
+import { autoLeave } from './auto-leave';
+import { autoJoin } from './auto-queue';
 import { autoWoot } from './auto-woot';
 import { nextSongDetails } from './next-song';
 import { notifications } from './notifications';

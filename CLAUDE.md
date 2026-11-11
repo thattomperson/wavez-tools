@@ -51,6 +51,10 @@ has to be checked by hand by running the bookmarklet in a WavezFM room.
 
 - Match the surrounding code: small modules, plain DOM via the `h()` helper in `src/ui/dom.ts`,
   shared widgets from `src/ui/components.ts`.
+- `.tsx` files compile JSX to `h()` (no React): import `h` from `src/ui/dom.ts`, use HTML attribute
+  names (`class`, `for`, `onclick`), and cast when you need a specific element type
+  (`<input /> as HTMLInputElement`). A function tag is a component that gets its attributes plus
+  `children`. `src/tools/auto-leave.tsx` is the example.
 - Keep the bundle small; it's injected into someone else's page.
 - When you add or change a tool, update the tool list in `README.md` too.
 

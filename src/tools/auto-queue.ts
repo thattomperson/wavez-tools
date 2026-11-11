@@ -1,6 +1,5 @@
-// Two switches that manage your place in the DJ queue: join when nobody else
-// is waiting, and leave once someone else joins. Together they fill gaps
-// without holding up the room.
+// Auto-join: joins the DJ queue when nobody else is waiting. Paired with
+// Auto-leave (auto-leave.ts) it fills gaps without holding up the room.
 import { requireBridge, type ActionResult, type RoomState } from '../wavez/bridge';
 import type { ToggleTool } from './types';
 
@@ -8,7 +7,7 @@ import type { ToggleTool } from './types';
 const COOLDOWN_MS = 3000;
 
 /** Users waiting in the queue, not counting you or whoever is DJing now. */
-function othersWaiting(state: RoomState): number {
+export function othersWaiting(state: RoomState): number {
   const { queue, currentUser } = state;
   return queue.entries.filter((e) => e.userId !== currentUser?.id && e.userId !== queue.currentDjId).length;
 }
@@ -70,24 +69,6 @@ export const autoJoin: ToggleTool = {
         state.permissions.joinQueue &&
         othersWaiting(state) === 0,
       () => requireBridge().actions.joinQueue(),
-    );
-  },
-};
-
-export const autoLeave: ToggleTool = {
-  kind: 'toggle',
-  id: 'auto-leave',
-  command: 'autoleave',
-  name: 'Auto-leave when others are queued',
-  blurb: 'Off',
-  onBlurb: "On: leaves the queue when someone else is waiting (not while you're playing)",
-  glyph: 'L',
-  enable() {
-    return watchQueue(
-      'Auto-leave',
-      // Never leave mid-song: that would cut your own track short.
-      (state) => state.queue.isJoined && !state.queue.isCurrentDj && othersWaiting(state) > 0,
-      () => requireBridge().actions.leaveQueue(),
     );
   },
 };

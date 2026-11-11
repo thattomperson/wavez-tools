@@ -116,18 +116,77 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
   // --- tool list --------------------------------------------------------------
 
   const stops = new Map<string, () => void>();
+  // Live lines from switches that are on, notes left by switches that turned
+  // themselves off, which cogs are open, and the line elements to update.
+  const statuses = new Map<string, { text: string; tone?: 'soon' }>();
+  const notes = new Map<string, string>();
+  const openOptions = new Set<string>();
+  const lines = new Map<string, HTMLElement>();
 
   function setToggle(tool: ToggleTool, on: boolean) {
     stops.get(tool.id)?.();
     stops.delete(tool.id);
+    statuses.delete(tool.id);
+    notes.delete(tool.id);
     if (on) {
       try {
-        stops.set(tool.id, tool.enable({ nextSong }));
+        let mine: (() => void) | undefined;
+        // A context only acts while the run it was made for is still the current one.
+        const live = () => mine !== undefined && stops.get(tool.id) === mine;
+        mine = tool.enable({
+          nextSong,
+          setStatus(text, tone) {
+            if (mine !== undefined && !live()) return;
+            if (text) statuses.set(tool.id, { text, tone });
+            else statuses.delete(tool.id);
+            updateLine(tool);
+          },
+          // Deferred, since enable() may still be running.
+          turnOff(note) {
+            queueMicrotask(() => {
+              if (!live()) return;
+              setToggle(tool, false);
+              if (note) notes.set(tool.id, note);
+              refreshList();
+            });
+          },
+          turnOffOther(id) {
+            queueMicrotask(() => {
+              const other = tools.find((t): t is ToggleTool => t.kind === 'toggle' && t.id === id);
+              if (!other || !stops.has(id)) return;
+              setToggle(other, false);
+              refreshList();
+            });
+          },
+        });
+        stops.set(tool.id, mine);
       } catch (err) {
         console.warn(`WavezFM Tools: ${tool.name} failed to start`, err);
       }
     }
     saveToggles([...stops.keys()]);
+  }
+
+  function refreshList() {
+    if (!current && !collapsed) renderContent();
+  }
+
+  function lineFor(tool: ToggleTool): { text: string; class: string } {
+    if (stops.has(tool.id)) {
+      const status = statuses.get(tool.id);
+      if (!status) return { text: tool.onBlurb, class: 'wt-muted' };
+      return { text: status.text, class: status.tone === 'soon' ? 'wt-warn' : 'wt-status' };
+    }
+    const note = notes.get(tool.id);
+    return note ? { text: note, class: 'wt-done' } : { text: tool.blurb, class: 'wt-muted' };
+  }
+
+  function updateLine(tool: ToggleTool) {
+    const el = lines.get(tool.id);
+    if (!el) return;
+    const line = lineFor(tool);
+    el.textContent = line.text;
+    el.className = line.class;
   }
 
   function toolRow(tool: Tool) {
@@ -143,16 +202,34 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
     }
     const on = stops.has(tool.id);
     const id = `wt-toggle-${tool.id}`;
-    return h(
+    const optionsId = `wt-options-${tool.id}`;
+    const open = !!tool.options && openOptions.has(tool.id);
+    const line = h('span');
+    lines.set(tool.id, line);
+    updateLine(tool);
+    const row = h(
       'div',
       { class: 'wt-row' },
       glyph,
-      h(
-        'label',
-        { class: 'wt-row-text', for: id },
-        h('span', { class: 'wt-row-name' }, tool.name),
-        h('span', { class: 'wt-muted' }, on ? tool.onBlurb : tool.blurb),
-      ),
+      h('label', { class: 'wt-row-text', for: id }, h('span', { class: 'wt-row-name' }, tool.name), line),
+      tool.options &&
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'wt-icon-btn wt-cog',
+            'aria-label': `${tool.name} options`,
+            'aria-expanded': String(open),
+            'aria-controls': optionsId,
+            onclick: () => {
+              if (open) openOptions.delete(tool.id);
+              else openOptions.add(tool.id);
+              renderContent();
+              content.querySelector<HTMLElement>(`[aria-controls="${optionsId}"]`)?.focus();
+            },
+          },
+          icon('cog'),
+        ),
       h(
         'button',
         {
@@ -164,10 +241,18 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
           onclick: () => {
             setToggle(tool, !on);
             renderContent();
+            content.querySelector<HTMLElement>(`#${id}`)?.focus();
           },
         },
         h('span'),
       ),
+    );
+    if (!tool.options) return row;
+    return h(
+      'div',
+      { class: open ? 'wt-group wt-open' : 'wt-group' },
+      row,
+      open && h('div', { id: optionsId }, tool.options()),
     );
   }
 
@@ -187,6 +272,7 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
 
   function renderContent() {
     content.hidden = collapsed;
+    lines.clear();
     if (!collapsed) content.replaceChildren(current ? current.body : toolList());
   }
 

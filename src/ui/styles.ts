@@ -86,5 +86,26 @@ ${P} .wt-track-head{display:flex;flex-direction:column;gap:2px}
 ${P} .wt-track-head a{font-size:14px;font-weight:600;color:#ecedf3;text-decoration:none}
 ${P} .wt-track-head a:hover{text-decoration:underline}
 ${P} .wt-warn{color:#ffc58a}
+${P} .wt-status{color:#b9c8ff}
+${P} .wt-done{color:#8fe0b2}
+${P} .wt-group{border-radius:10px}
+${P} .wt-group.wt-open{background:#1c1e2b}
+${P} .wt-row .wt-icon-btn{color:#ecedf3}
+${P} .wt-cog[aria-expanded="true"]{background:#30354d;color:#8fb0ff}
+${P} .wt-options{display:flex;flex-direction:column;gap:4px;padding:2px 12px 12px 14px}
+${P} .wt-label{padding-bottom:4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6d7085}
+${P} .wt-rule{display:flex;align-items:center;gap:8px;min-height:44px}
+${P} .wt-rule input{width:16px;height:16px;margin:0;flex-shrink:0;accent-color:#8fb0ff;cursor:pointer}
+${P} .wt-rule label{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;cursor:pointer}
+${P} .wt-rule-off label>span:first-child{color:#9a9cae}
+${P} .wt-hint{font-size:11px;color:#6d7085}
+${P} .wt-stepper{display:flex;align-items:center;flex-shrink:0;border:1px solid #3a3e55;border-radius:999px}
+${P} .wt-rule-off .wt-stepper{opacity:.45}
+${P} .wt-stepper button{width:30px;height:30px;display:flex;align-items:center;justify-content:center;padding:0;border:0;
+  border-radius:50%;background:none;cursor:pointer}
+${P} .wt-stepper button:hover{background:#262a3d}
+${P} .wt-stepper button:disabled{opacity:.35;cursor:default;background:none}
+${P} .wt-stepper output{min-width:40px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+${P} .wt-options .wt-divider{margin:6px 0}
 ${P} .wt-error{color:#ff9aa8}
 `;

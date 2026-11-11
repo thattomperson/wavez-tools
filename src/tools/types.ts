@@ -14,6 +14,12 @@ export interface ScreenContext {
 export interface ToggleContext {
   /** The next song and its opcheck, shared with the header pill. */
   nextSong: NextSongStore;
+  /** Replaces the line under the switch's name while it's on; null goes back to `onBlurb`. `soon` shows it in orange. */
+  setStatus(text: string | null, tone?: 'soon'): void;
+  /** Switches this tool off, leaving `note` under its name until it's switched on again. */
+  turnOff(note?: string): void;
+  /** Switches another switch off by its id. */
+  turnOffOther(id: string): void;
 }
 
 interface ToolBase {
@@ -41,6 +47,8 @@ export interface ToggleTool extends ToolBase {
   onBlurb: string;
   /** Starts the behaviour and returns a function that stops it. */
   enable(ctx: ToggleContext): () => void;
+  /** Settings shown under the row when its cog is open. Without it the row has no cog. */
+  options?(): HTMLElement;
   /** Extra chat subcommands, e.g. `test` for `/wt notify test`. Each returns lines to show. */
   subcommands?: Record<string, { help: string; run(): string[] }>;
 }
