@@ -1,7 +1,7 @@
 import { playlists } from '../wavez/api';
 import { opcheck } from '../wavez/opcheck';
 import { getPlaylistQueue, trackArtist, trackLink, trackTitle } from '../wavez/tracks';
-import { button, chip, message, setChip } from '../ui/components';
+import { button, chip, message, opcheckLabel, setChip } from '../ui/components';
 import { h } from '../ui/dom';
 import type { ScreenContext, ScreenTool } from './types';
 
@@ -64,8 +64,7 @@ async function check(ctx: ScreenContext): Promise<void> {
     try {
       const result = await opcheck(trackLink(track));
       if (result.op || result.blocked) opIds.add(track.id);
-      if (result.blocked) setChip(status, 'Blocked', 'op');
-      else setChip(status, result.op ? 'OP' : 'OK', result.op ? 'op' : 'ok');
+      setChip(status, ...opcheckLabel(result));
       status.title = result.reason ?? '';
     } catch (err) {
       setChip(status, '?', 'err');

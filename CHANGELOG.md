@@ -20,6 +20,10 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Changed
 
+- The panel now updates only the part that changed (a status line, a chip, one line in Room info)
+  instead of redrawing the header, the tool list or the whole screen. Flipping a switch or opening
+  a cog no longer jumps focus, and Room info no longer flickers on every woot. Built on
+  `@preact/signals-core` (about 2 KB gzipped).
 - Panel code can now be written in TSX, which compiles to the existing `h()` helper (no React
   added). Auto-leave's options are the first to use it.
   ([#12](https://github.com/thattomperson/wavez-tools/pull/12))

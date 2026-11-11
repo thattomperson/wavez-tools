@@ -1,3 +1,4 @@
+import { effect } from '@preact/signals-core';
 import { playlists } from '../wavez/api';
 import type { NextSongState } from '../wavez/next-song';
 import { getPlaylistQueue, trackName } from '../wavez/tracks';
@@ -51,8 +52,7 @@ export const autoMoveOp: ToggleTool = {
       }
     };
 
-    const unsubscribe = nextSong.subscribe((state) => void check(state));
-    void check(nextSong.get());
+    const unsubscribe = effect(() => void check(nextSong.value));
     return () => {
       stopped = true;
       unsubscribe();

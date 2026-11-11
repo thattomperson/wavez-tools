@@ -1,10 +1,11 @@
 // The floating panel: a header pill showing the next song's opcheck, a list
 // of tools, and a screen per tool with a back button. Collapses to the pill.
+import { batch, computed, signal, untracked, type Signal } from '@preact/signals-core';
 import type { ScreenTool, ToggleTool, Tool } from '../tools';
-import { createNextSongStore, type NextSongState, type NextSongStore } from '../wavez/next-song';
+import { createNextSongStore, type NextSongStore } from '../wavez/next-song';
 import { trackArtist, trackTitle } from '../wavez/tracks';
-import { banner, chip, opcheckChip } from './components';
-import { h } from './dom';
+import { banner, opcheckLabel, type Tone } from './components';
+import { h, scoped, watch } from './dom';
 import { makeDraggable } from './drag';
 import { icon, type IconName } from './icons';
 import { css, PANEL_ID } from './styles';
@@ -43,123 +44,163 @@ export function findPanel(): PanelHandle | null {
 }
 
 export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle {
+  // Everything below is built once. Signals hold the state, and each node that
+  // shows a piece of it updates on its own (see src/ui/dom.ts), so a change
+  // never rebuilds the header or the list and focus stays where it was.
+  const [handle, disposeAll] = scoped(() => build(tools, opts));
+  const unmount = handle.unmount;
+  handle.unmount = () => {
+    unmount();
+    disposeAll();
+  };
+  return handle;
+}
+
+interface ToggleState {
+  on: Signal<boolean>;
+  /** Live line from a switch that's on. */
+  status: Signal<{ text: string; tone?: 'soon' } | null>;
+  /** Note left by a switch that turned itself off. */
+  note: Signal<string | null>;
+  /** Whether its cog is open. */
+  open: Signal<boolean>;
+}
+
+interface Current {
+  tool: ScreenTool;
+  body: HTMLElement;
+  controller: AbortController;
+  subtitle: HTMLElement;
+}
+
+function build(tools: Tool[], opts: PanelOptions): PanelHandle {
   const nextSong = createNextSongStore();
-  const panel = h('div', { id: PANEL_ID }, h('style', null, css));
-  const header = h('div', { class: 'wt-header' });
-  const content = h('div', { class: 'wt-content' });
-  panel.append(header, content);
+  const collapsed = signal(false);
+  const current = signal<Current | null>(null);
+  // The tool whose screen is showing, or null for the pill and tool list.
+  const inTool = computed(() => (collapsed.value ? null : current.value));
+  const panel = h('div', { id: PANEL_ID });
   const drag = makeDraggable(panel);
 
-  let collapsed = false;
-  let current: { tool: ScreenTool; body: HTMLElement; controller: AbortController; subtitle: HTMLElement } | null = null;
-
-  const iconButton = (name: IconName, label: string, onclick: () => void, expanded?: boolean) =>
-    h(
-      'button',
-      { type: 'button', class: 'wt-icon-btn', 'aria-label': label, 'aria-expanded': expanded === undefined ? undefined : String(expanded), onclick },
-      icon(name),
-    );
-  const toggleButton = () =>
-    collapsed
-      ? iconButton('expand', 'Expand', () => setCollapsed(false), false)
-      : iconButton('collapse', 'Collapse', () => setCollapsed(true), true);
+  const iconButton = (name: IconName, label: string, onclick: () => void) =>
+    h('button', { type: 'button', class: 'wt-icon-btn', 'aria-label': label, onclick }, icon(name));
 
   // --- header ---------------------------------------------------------------
 
-  function pillHeader(state: NextSongState) {
+  const pill = computed(() => {
+    const state = nextSong.value;
     const { track } = state;
-    const tone = state.status === 'ready' ? (state.result.op || state.result.blocked ? 'op' : 'ok') : '';
     const label = track
       ? [trackTitle(track), trackArtist(track)].filter(Boolean).join(' · ')
       : state.status === 'failed'
         ? state.error
         : 'Loading…';
-    const status =
-      state.status === 'ready'
-        ? opcheckChip(state.result)
-        : state.status === 'failed'
-          ? chip('?', 'err')
-          : chip('Checking…', 'busy');
-    if (state.status === 'failed') status.title = state.error;
-    const text = h(
+    const [chipText, chipTone]: [string, Tone] =
+      state.status === 'ready' ? opcheckLabel(state.result) : state.status === 'failed' ? ['?', 'err'] : ['Checking…', 'busy'];
+    const dot = state.status === 'ready' ? (state.result.op || state.result.blocked ? 'op' : 'ok') : '';
+    return { label, chipText, chipTone, chipTitle: state.status === 'failed' ? state.error : undefined, dot };
+  });
+  const pillNodes = () => [
+    h('span', { class: computed(() => `wt-dot ${pill.value.dot && `wt-${pill.value.dot}`}`) }),
+    h(
       'button',
       {
         type: 'button',
         class: 'wt-pill-text wt-ellipsis',
-        title: label,
+        title: computed(() => pill.value.label),
         onclick: () => {
           if (opts.pillTool) openTool(opts.pillTool);
-          else setCollapsed(false);
+          else collapsed.value = false;
         },
       },
       h('span', { class: 'wt-muted' }, 'Next: '),
-      label,
-    );
-    header.className = 'wt-header';
-    header.replaceChildren(drag.grip, h('span', { class: `wt-dot ${tone && `wt-${tone}`}` }), text, status, toggleButton());
-  }
+      computed(() => pill.value.label),
+    ),
+    h(
+      'span',
+      { class: computed(() => `wt-chip wt-${pill.value.chipTone}`), title: computed(() => pill.value.chipTitle) },
+      computed(() => pill.value.chipText),
+    ),
+  ];
+  const toolTitle = (cur: Current) => [
+    iconButton('back', 'Back to tools', back),
+    h('div', { class: 'wt-title' }, h('b', { class: 'wt-ellipsis' }, cur.tool.name), cur.subtitle),
+  ];
+  const collapseButton = h(
+    'button',
+    {
+      type: 'button',
+      class: 'wt-icon-btn',
+      'aria-label': computed(() => (collapsed.value ? 'Expand' : 'Collapse')),
+      'aria-expanded': computed(() => String(!collapsed.value)),
+      onclick: () => (collapsed.value = !collapsed.value),
+    },
+    () => icon(collapsed.value ? 'expand' : 'collapse'),
+  );
+  const header = h(
+    'div',
+    { class: computed(() => (inTool.value ? 'wt-header wt-in-tool' : 'wt-header')) },
+    drag.grip,
+    () => {
+      const cur = inTool.value;
+      return cur ? toolTitle(cur) : pillNodes();
+    },
+    collapseButton,
+  );
 
-  function renderHeader() {
-    if (current && !collapsed) {
-      header.className = 'wt-header wt-in-tool';
-      header.replaceChildren(
-        drag.grip,
-        iconButton('back', 'Back to tools', back),
-        h('div', { class: 'wt-title' }, h('b', { class: 'wt-ellipsis' }, current.tool.name), current.subtitle),
-        toggleButton(),
-      );
-    } else {
-      pillHeader(nextSong.get());
-    }
-  }
-
-  // --- tool list --------------------------------------------------------------
+  // --- switches -------------------------------------------------------------
 
   const stops = new Map<string, () => void>();
-  // Live lines from switches that are on, notes left by switches that turned
-  // themselves off, which cogs are open, and the line elements to update.
-  const statuses = new Map<string, { text: string; tone?: 'soon' }>();
-  const notes = new Map<string, string>();
-  const openOptions = new Set<string>();
-  const lines = new Map<string, HTMLElement>();
+  const toggleStates = new Map<string, ToggleState>();
+  const stateOf = (tool: ToggleTool): ToggleState => {
+    let st = toggleStates.get(tool.id);
+    if (!st) {
+      st = { on: signal(false), status: signal(null), note: signal(null), open: signal(false) };
+      toggleStates.set(tool.id, st);
+    }
+    return st;
+  };
 
   function setToggle(tool: ToggleTool, on: boolean) {
+    const st = stateOf(tool);
     stops.get(tool.id)?.();
     stops.delete(tool.id);
-    statuses.delete(tool.id);
-    notes.delete(tool.id);
+    batch(() => {
+      st.on.value = false;
+      st.status.value = null;
+      st.note.value = null;
+    });
     if (on) {
       try {
         let mine: (() => void) | undefined;
         // A context only acts while the run it was made for is still the current one.
         const live = () => mine !== undefined && stops.get(tool.id) === mine;
-        mine = tool.enable({
-          nextSong,
-          setStatus(text, tone) {
-            if (mine !== undefined && !live()) return;
-            if (text) statuses.set(tool.id, { text, tone });
-            else statuses.delete(tool.id);
-            updateLine(tool);
-          },
-          // Deferred, since enable() may still be running.
-          turnOff(note) {
-            queueMicrotask(() => {
-              if (!live()) return;
-              setToggle(tool, false);
-              if (note) notes.set(tool.id, note);
-              refreshList();
-            });
-          },
-          turnOffOther(id) {
-            queueMicrotask(() => {
-              const other = tools.find((t): t is ToggleTool => t.kind === 'toggle' && t.id === id);
-              if (!other || !stops.has(id)) return;
-              setToggle(other, false);
-              refreshList();
-            });
-          },
-        });
+        // Untracked, so a tool reading a signal while it starts can't tie itself to whatever called this.
+        mine = untracked(() =>
+          tool.enable({
+            nextSong,
+            setStatus(text, tone) {
+              if (mine !== undefined && !live()) return;
+              st.status.value = text ? { text, tone } : null;
+            },
+            // Deferred, since enable() may still be running.
+            turnOff(note) {
+              queueMicrotask(() => {
+                if (!live()) return;
+                setToggle(tool, false);
+                if (note) st.note.value = note;
+              });
+            },
+            turnOffOther(id) {
+              queueMicrotask(() => {
+                const other = tools.find((t): t is ToggleTool => t.kind === 'toggle' && t.id === id);
+                if (other && stops.has(id)) setToggle(other, false);
+              });
+            },
+          }),
+        );
         stops.set(tool.id, mine);
+        st.on.value = true;
       } catch (err) {
         console.warn(`WavezFM Tools: ${tool.name} failed to start`, err);
       }
@@ -167,51 +208,41 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
     saveToggles([...stops.keys()]);
   }
 
-  function refreshList() {
-    if (!current && !collapsed) renderContent();
+  // --- tool list --------------------------------------------------------------
+
+  function screenRow(tool: ScreenTool) {
+    return h(
+      'button',
+      { type: 'button', class: 'wt-row', onclick: () => openTool(tool) },
+      h('span', { class: 'wt-glyph', 'aria-hidden': 'true' }, tool.glyph),
+      h('span', { class: 'wt-row-text' }, h('span', { class: 'wt-row-name' }, tool.name), h('span', { class: 'wt-muted' }, tool.blurb)),
+      icon('open', 14),
+    );
   }
 
-  function lineFor(tool: ToggleTool): { text: string; class: string } {
-    if (stops.has(tool.id)) {
-      const status = statuses.get(tool.id);
-      if (!status) return { text: tool.onBlurb, class: 'wt-muted' };
-      return { text: status.text, class: status.tone === 'soon' ? 'wt-warn' : 'wt-status' };
-    }
-    const note = notes.get(tool.id);
-    return note ? { text: note, class: 'wt-done' } : { text: tool.blurb, class: 'wt-muted' };
-  }
-
-  function updateLine(tool: ToggleTool) {
-    const el = lines.get(tool.id);
-    if (!el) return;
-    const line = lineFor(tool);
-    el.textContent = line.text;
-    el.className = line.class;
-  }
-
-  function toolRow(tool: Tool) {
-    const glyph = h('span', { class: 'wt-glyph', 'aria-hidden': 'true' }, tool.glyph);
-    if (tool.kind === 'screen') {
-      return h(
-        'button',
-        { type: 'button', class: 'wt-row', onclick: () => openTool(tool) },
-        glyph,
-        h('span', { class: 'wt-row-text' }, h('span', { class: 'wt-row-name' }, tool.name), h('span', { class: 'wt-muted' }, tool.blurb)),
-        icon('open', 14),
-      );
-    }
-    const on = stops.has(tool.id);
+  function toggleRow(tool: ToggleTool) {
+    const st = stateOf(tool);
     const id = `wt-toggle-${tool.id}`;
     const optionsId = `wt-options-${tool.id}`;
-    const open = !!tool.options && openOptions.has(tool.id);
-    const line = h('span');
-    lines.set(tool.id, line);
-    updateLine(tool);
+    const line = computed(() => {
+      if (st.on.value) {
+        const status = st.status.value;
+        if (!status) return { text: tool.onBlurb, class: 'wt-muted' };
+        return { text: status.text, class: status.tone === 'soon' ? 'wt-warn' : 'wt-status' };
+      }
+      const note = st.note.value;
+      return note ? { text: note, class: 'wt-done' } : { text: tool.blurb, class: 'wt-muted' };
+    });
     const row = h(
       'div',
       { class: 'wt-row' },
-      glyph,
-      h('label', { class: 'wt-row-text', for: id }, h('span', { class: 'wt-row-name' }, tool.name), line),
+      h('span', { class: 'wt-glyph', 'aria-hidden': 'true' }, tool.glyph),
+      h(
+        'label',
+        { class: 'wt-row-text', for: id },
+        h('span', { class: 'wt-row-name' }, tool.name),
+        h('span', { class: computed(() => line.value.class) }, computed(() => line.value.text)),
+      ),
       tool.options &&
         h(
           'button',
@@ -219,14 +250,9 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
             type: 'button',
             class: 'wt-icon-btn wt-cog',
             'aria-label': `${tool.name} options`,
-            'aria-expanded': String(open),
+            'aria-expanded': computed(() => String(st.open.value)),
             'aria-controls': optionsId,
-            onclick: () => {
-              if (open) openOptions.delete(tool.id);
-              else openOptions.add(tool.id);
-              renderContent();
-              content.querySelector<HTMLElement>(`[aria-controls="${optionsId}"]`)?.focus();
-            },
+            onclick: () => (st.open.value = !st.open.value),
           },
           icon('cog'),
         ),
@@ -237,75 +263,70 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
           id,
           class: 'wt-switch',
           role: 'switch',
-          'aria-checked': String(on),
-          onclick: () => {
-            setToggle(tool, !on);
-            renderContent();
-            content.querySelector<HTMLElement>(`#${id}`)?.focus();
-          },
+          'aria-checked': computed(() => String(st.on.value)),
+          onclick: () => setToggle(tool, !st.on.peek()),
         },
         h('span'),
       ),
     );
-    if (!tool.options) return row;
+    const { options } = tool;
+    if (!options) return row;
     return h(
       'div',
-      { class: open ? 'wt-group wt-open' : 'wt-group' },
+      { class: computed(() => (st.open.value ? 'wt-group wt-open' : 'wt-group')) },
       row,
-      open && h('div', { id: optionsId }, tool.options()),
+      // The options are built when the cog opens and thrown away (bindings and all) when it closes.
+      () => st.open.value && h('div', { id: optionsId }, untracked(options)),
     );
   }
 
-  function toolList() {
-    const screens = tools.filter((t) => t.kind === 'screen');
-    const toggles = tools.filter((t) => t.kind === 'toggle');
-    return h(
-      'div',
-      { class: 'wt-list' },
-      ...screens.map(toolRow),
-      screens.length > 0 && toggles.length > 0 && h('div', { class: 'wt-divider' }),
-      ...toggles.map(toolRow),
-    );
-  }
+  const screens = tools.filter((t): t is ScreenTool => t.kind === 'screen');
+  const toggles = tools.filter((t): t is ToggleTool => t.kind === 'toggle');
+  const list = h(
+    'div',
+    { class: 'wt-list' },
+    ...screens.map(screenRow),
+    screens.length > 0 && toggles.length > 0 && h('div', { class: 'wt-divider' }),
+    ...toggles.map(toggleRow),
+  );
 
   // --- navigation -------------------------------------------------------------
 
-  function renderContent() {
-    content.hidden = collapsed;
-    lines.clear();
-    if (!collapsed) content.replaceChildren(current ? current.body : toolList());
-  }
-
-  function render() {
-    panel.classList.toggle('wt-collapsed', collapsed);
-    renderHeader();
-    renderContent();
-  }
-
-  function setCollapsed(value: boolean) {
-    collapsed = value;
-    render();
-  }
+  const content = h(
+    'div',
+    { class: 'wt-content', hidden: collapsed },
+    () => (collapsed.value ? null : current.value ? current.value.body : list),
+  );
+  panel.append(h('style', null, css), header, content);
+  // classList rather than a class binding, since dragging adds a class too.
+  watch(() => void panel.classList.toggle('wt-collapsed', collapsed.value));
 
   function openTool(tool: ScreenTool) {
-    current?.controller.abort();
+    current.peek()?.controller.abort();
     const controller = new AbortController();
     const body = h('div');
     const subtitle = h('span', { class: 'wt-sub wt-ellipsis' });
-    current = { tool, body, controller, subtitle };
-    collapsed = false;
-    render();
+    batch(() => {
+      current.value = { tool, body, controller, subtitle };
+      collapsed.value = false;
+    });
     Promise.resolve()
-      .then(() =>
-        tool.open({
-          body,
-          signal: controller.signal,
-          nextSong,
-          setSubtitle: (text) => {
-            subtitle.textContent = text;
-          },
-        }),
-      )
+      .then(() => {
+        if (controller.signal.aborted) return;
+        // Live bindings the screen makes while it opens stop when it's left.
+        const [opened, dispose] = scoped(() =>
+          tool.open({
+            body,
+            signal: controller.signal,
+            nextSong,
+            setSubtitle: (text) => {
+              subtitle.textContent = text;
+            },
+          }),
+        );
+        controller.signal.addEventListener('abort', dispose);
+        return opened;
+      })
       .catch((err) => {
         if (controller.signal.aborted) return;
         body.replaceChildren(h('div', { class: 'wt-body' }, banner('err', err instanceof Error ? err.message : String(err))));
@@ -313,41 +334,33 @@ export function mountPanel(tools: Tool[], opts: PanelOptions = {}): PanelHandle 
   }
 
   function back() {
-    current?.controller.abort();
-    current = null;
-    render();
+    current.peek()?.controller.abort();
+    current.value = null;
   }
 
   // --- lifecycle --------------------------------------------------------------
 
   // Read the saved list once: each setToggle below re-saves it as it goes.
   const saved = loadToggles();
-  for (const tool of tools) {
-    if (tool.kind === 'toggle' && saved.includes(tool.id)) setToggle(tool, true);
+  for (const tool of toggles) {
+    if (saved.includes(tool.id)) setToggle(tool, true);
   }
-  const unsubscribe = nextSong.subscribe(() => {
-    if (collapsed || !current) renderHeader();
-  });
-  render();
   document.body.appendChild(panel);
 
   const stopExtras = opts.onMount?.({
     nextSong,
     isOn: (tool) => stops.has(tool.id),
     setToggle(tool, on) {
-      if (stops.has(tool.id) === on) return;
-      setToggle(tool, on);
-      if (!current) renderContent();
+      if (stops.has(tool.id) !== on) setToggle(tool, on);
     },
   });
 
   const handle: PanelHandle = {
     unmount() {
       stopExtras?.();
-      current?.controller.abort();
+      current.peek()?.controller.abort();
       // Toggles stop with the panel but stay remembered for the next open.
       for (const stop of stops.values()) stop();
-      unsubscribe();
       nextSong.dispose();
       drag.dispose();
       panel.remove();

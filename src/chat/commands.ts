@@ -30,7 +30,7 @@ export function createCommandRunner(tools: Tool[], panel: PanelControls): Comman
   const status = () => toggles.map((t) => `${t.name}: ${panel.isOn(t) ? 'on' : 'off'}`);
 
   const next = () => {
-    const state = panel.nextSong.get();
+    const state = panel.nextSong.peek();
     const name = state.track ? trackName(state.track) : null;
     if (state.status === 'ready') {
       const verdict = state.result.blocked ? 'blocked' : state.result.op ? 'OP' : 'not OP';

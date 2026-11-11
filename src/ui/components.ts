@@ -1,4 +1,5 @@
 // Building blocks that tool screens share.
+import type { ReadonlySignal } from '@preact/signals-core';
 import type { OpcheckResult } from '../wavez/opcheck';
 import { h, type Child } from './dom';
 import { icon } from './icons';
@@ -14,15 +15,17 @@ export function setChip(node: HTMLElement, text: string, tone: Tone): void {
   node.textContent = text;
 }
 
-export function opcheckChip(result: OpcheckResult): HTMLSpanElement {
-  if (result.blocked) return chip('Blocked', 'op');
-  return result.op ? chip('OP', 'op') : chip('OK', 'ok');
+/** The chip text and tone for an opcheck result. */
+export function opcheckLabel(result: OpcheckResult): [string, Tone] {
+  if (result.blocked) return ['Blocked', 'op'];
+  return result.op ? ['OP', 'op'] : ['OK', 'ok'];
 }
+
 
 export function button(
   label: string,
   onclick: () => void,
-  opts: { primary?: boolean; disabled?: boolean } = {},
+  opts: { primary?: boolean; disabled?: boolean | ReadonlySignal<boolean> } = {},
 ): HTMLButtonElement {
   return h(
     'button',

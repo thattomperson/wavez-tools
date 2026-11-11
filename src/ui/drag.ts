@@ -14,7 +14,7 @@ interface Position {
 }
 
 export interface Draggable {
-  /** The grip element; the header re-appends it on every render. */
+  /** The grip element, for the header to show. */
   grip: HTMLButtonElement;
   dispose(): void;
 }

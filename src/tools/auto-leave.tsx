@@ -4,6 +4,7 @@
 // - after your next N plays (then switches itself off)
 // - after N minutes, a sleep timer (then switches itself off)
 // It never leaves while your own song is playing.
+import { computed, effect, signal, untracked } from '@preact/signals-core';
 import { h } from '../ui/dom';
 import { icon } from '../ui/icons';
 import { requireBridge, type ActionResult } from '../wavez/bridge';
@@ -46,19 +47,17 @@ const DEFAULTS: LeaveSettings = {
   stopJoin: false,
 };
 
-let settings = loadSettings();
+// The running switch and the options under the cog both follow this.
+const settings = signal(loadSettings());
 
 function setSettings(next: LeaveSettings) {
-  settings = next;
+  settings.value = next;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
     // Storage blocked: settings just won't be remembered.
   }
-  listeners.forEach((fn) => fn());
 }
-
-const listeners = new Set<() => void>();
 
 function loadSettings(): LeaveSettings {
   let saved: Partial<Record<keyof LeaveSettings, unknown>> = {};
@@ -126,7 +125,7 @@ function run(ctx: ToggleContext): () => void {
       ctx.setStatus(null);
       return;
     }
-    const s = settings;
+    const s = settings.peek();
     const me = state.currentUser?.id;
     const playback = state.playback;
     // Count each of your songs once, as it starts.
@@ -190,14 +189,17 @@ function run(ctx: ToggleContext): () => void {
     bridge.room.subscribe('queue_changed', check),
     bridge.room.subscribe('playback_changed', check),
   ];
-  listeners.add(check);
+  // Checks now, and again whenever the rules change.
+  const stopWatching = effect(() => {
+    void settings.value;
+    untracked(check);
+  });
   const tick = setInterval(check, TICK_MS);
-  check();
   return () => {
     done = true;
     clearTimeout(retry);
     clearInterval(tick);
-    listeners.delete(check);
+    stopWatching();
     stops.forEach((stop) => stop());
   };
 }
@@ -205,10 +207,11 @@ function run(ctx: ToggleContext): () => void {
 // --- options under the cog ------------------------------------------------------
 
 function setRule(key: RuleKey, patch: Partial<Rule>) {
-  setSettings({ ...settings, [key]: { ...settings[key], ...patch } });
+  const s = settings.peek();
+  setSettings({ ...s, [key]: { ...s[key], ...patch } });
 }
 
-/** One rule: a checkbox, its wording, and a -/+ stepper. Returns the row and a function that redraws it. */
+/** One rule: a checkbox, its wording, and a -/+ stepper, each following the saved settings. */
 function RuleRow(props: {
   rule: RuleKey;
   text: (n: number) => string;
@@ -219,63 +222,43 @@ function RuleRow(props: {
   const { rule: key, text, hint, unit, short } = props;
   const { min, max, step } = LIMITS[key];
   const id = `wt-leave-${key}`;
-  const bump = (dir: number) => setRule(key, { on: true, n: Math.min(max, Math.max(min, settings[key].n + dir * step)) });
+  const rule = computed(() => settings.value[key]);
+  const bump = (dir: number) => setRule(key, { on: true, n: Math.min(max, Math.max(min, rule.peek().n + dir * step)) });
 
-  const box = (
-    <input type="checkbox" id={id} onchange={(e) => setRule(key, { on: (e.currentTarget as HTMLInputElement).checked })} />
-  ) as HTMLInputElement;
-  const name = <span />;
-  const value = <output aria-live="polite" />;
-  const less = (
-    <button type="button" aria-label={`Fewer ${unit}`} onclick={() => bump(-1)}>
-      {icon('minus', 12)}
-    </button>
-  ) as HTMLButtonElement;
-  const more = (
-    <button type="button" aria-label={`More ${unit}`} onclick={() => bump(1)}>
-      {icon('plus', 12)}
-    </button>
-  ) as HTMLButtonElement;
-  const row = (
-    <div class="wt-rule">
-      {box}
+  return (
+    <div class={computed(() => (rule.value.on ? 'wt-rule' : 'wt-rule wt-rule-off'))}>
+      <input
+        type="checkbox"
+        id={id}
+        checked={computed(() => rule.value.on)}
+        onchange={(e) => setRule(key, { on: (e.currentTarget as HTMLInputElement).checked })}
+      />
       <label for={id}>
-        {name}
+        <span>{computed(() => text(rule.value.n))}</span>
         <span class="wt-hint">{hint}</span>
       </label>
       <span class="wt-stepper">
-        {less}
-        {value}
-        {more}
+        <button type="button" aria-label={`Fewer ${unit}`} disabled={computed(() => rule.value.n <= min)} onclick={() => bump(-1)}>
+          {icon('minus', 12)}
+        </button>
+        <output aria-live="polite">{computed(() => short(rule.value.n))}</output>
+        <button type="button" aria-label={`More ${unit}`} disabled={computed(() => rule.value.n >= max)} onclick={() => bump(1)}>
+          {icon('plus', 12)}
+        </button>
       </span>
     </div>
   );
-
-  const sync = () => {
-    const rule = settings[key];
-    box.checked = rule.on;
-    row.classList.toggle('wt-rule-off', !rule.on);
-    name.textContent = text(rule.n);
-    value.textContent = short(rule.n);
-    less.disabled = rule.n <= min;
-    more.disabled = rule.n >= max;
-  };
-  syncers.set(row, sync);
-  sync();
-  return row;
 }
-
-// Redraw functions for the rows on screen, keyed by row so they go with it.
-const syncers = new WeakMap<Element, () => void>();
 
 function options(): HTMLElement {
   const stopJoin = (
     <input
       type="checkbox"
       id="wt-leave-stopjoin"
-      onchange={(e) => setSettings({ ...settings, stopJoin: (e.currentTarget as HTMLInputElement).checked })}
+      checked={computed(() => settings.value.stopJoin)}
+      onchange={(e) => setSettings({ ...settings.peek(), stopJoin: (e.currentTarget as HTMLInputElement).checked })}
     />
-  ) as HTMLInputElement;
+  );
 
   const rows = [
     <RuleRow
@@ -301,7 +284,7 @@ function options(): HTMLElement {
     />,
   ];
 
-  const el = (
+  return (
     <div class="wt-options">
       <span class="wt-label">Leave when any of these happens</span>
       {rows}
@@ -319,17 +302,6 @@ function options(): HTMLElement {
       </span>
     </div>
   );
-
-  const sync = () => {
-    rows.forEach((row) => syncers.get(row)?.());
-    stopJoin.checked = settings.stopJoin;
-  };
-  // Redraw after each change. The listener goes once the panel re-renders and
-  // this element is thrown away.
-  const listener = () => (el.isConnected ? sync() : listeners.delete(listener));
-  listeners.add(listener);
-  sync();
-  return el;
 }
 
 export const autoLeave: ToggleTool = {

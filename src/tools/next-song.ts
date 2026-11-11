@@ -1,8 +1,8 @@
 import { formatAgo, formatDuration } from '../lib/format';
-import type { NextSongState } from '../wavez/next-song';
+import { computed } from '@preact/signals-core';
 import { trackArtist, trackLink, trackTitle } from '../wavez/tracks';
 import { banner, button, message, stats } from '../ui/components';
-import { h } from '../ui/dom';
+import { h, watch } from '../ui/dom';
 import type { ScreenTool } from './types';
 
 export const nextSongDetails: ScreenTool = {
@@ -10,28 +10,33 @@ export const nextSongDetails: ScreenTool = {
   name: 'Next song details',
   blurb: 'Play counts and last played for the next song',
   glyph: 'S',
-  open({ body, setSubtitle, signal, nextSong }) {
-    const render = (state: NextSongState) => {
-      setSubtitle(state.playlist ? `Up next · ${state.playlist.name}` : 'Up next');
-      const { track } = state;
-      const head =
-        track &&
+  open({ body, setSubtitle, nextSong }) {
+    // Only the part that depends on what changed is redrawn: the track line when
+    // the track changes, the verdict when the check comes back.
+    const track = computed(() => nextSong.value.track);
+    const status = computed(() => nextSong.value.status);
+    watch(() => {
+      const { playlist } = nextSong.value;
+      setSubtitle(playlist ? `Up next · ${playlist.name}` : 'Up next');
+    });
+
+    const head = () => {
+      const t = track.value;
+      return (
+        t &&
         h(
           'div',
           { class: 'wt-track-head' },
-          h('a', { href: trackLink(track), target: '_blank', rel: 'noopener' }, trackTitle(track)),
-          h('span', { class: 'wt-muted' }, [trackArtist(track), formatDuration(track.durationMs)].filter(Boolean).join(' · ')),
-        );
-      const recheck = button('Recheck', () => nextSong.refresh(), { disabled: state.status === 'loading' });
+          h('a', { href: trackLink(t), target: '_blank', rel: 'noopener' }, trackTitle(t)),
+          h('span', { class: 'wt-muted' }, [trackArtist(t), formatDuration(t.durationMs)].filter(Boolean).join(' · ')),
+        )
+      );
+    };
 
-      if (state.status === 'loading') {
-        body.replaceChildren(h('div', { class: 'wt-body' }, head, message('Checking with the bot…'), recheck));
-        return;
-      }
-      if (state.status === 'failed') {
-        body.replaceChildren(h('div', { class: 'wt-body' }, head, banner('err', state.error), recheck));
-        return;
-      }
+    const details = () => {
+      const state = nextSong.value;
+      if (state.status === 'loading') return message('Checking with the bot…');
+      if (state.status === 'failed') return banner('err', state.error);
       const { result } = state;
       const { plays } = result;
       const verdict = result.blocked
@@ -39,30 +44,26 @@ export const nextSongDetails: ScreenTool = {
         : result.op
           ? banner('op', h('b', null, 'Overplayed.'), result.reason ? ` ${result.reason}` : '')
           : banner('ok', h('b', null, 'Not overplayed.'), result.reason ? ` ${result.reason}` : '');
-      body.replaceChildren(
-        h(
-          'div',
-          { class: 'wt-body' },
-          head,
-          verdict,
-          stats([
-            { value: plays.day, label: 'today', hot: result.op },
-            { value: plays.week, label: 'week' },
-            { value: plays.month, label: 'month' },
-            { value: plays.all, label: 'all time' },
-          ]),
-          h(
-            'div',
-            { class: 'wt-muted' },
-            `Last played ${formatAgo(result.lastPlayed)}`,
-            result.label ? ` · ${result.label}` : '',
-          ),
-          recheck,
-        ),
-      );
+      return [
+        verdict,
+        stats([
+          { value: plays.day, label: 'today', hot: result.op },
+          { value: plays.week, label: 'week' },
+          { value: plays.month, label: 'month' },
+          { value: plays.all, label: 'all time' },
+        ]),
+        h('div', { class: 'wt-muted' }, `Last played ${formatAgo(result.lastPlayed)}`, result.label ? ` · ${result.label}` : ''),
+      ];
     };
-    render(nextSong.get());
-    const unsubscribe = nextSong.subscribe(render);
-    signal.addEventListener('abort', unsubscribe);
+
+    body.replaceChildren(
+      h(
+        'div',
+        { class: 'wt-body' },
+        head,
+        details,
+        button('Recheck', () => nextSong.refresh(), { disabled: computed(() => status.value === 'loading') }),
+      ),
+    );
   },
 };
