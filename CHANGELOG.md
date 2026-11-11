@@ -11,6 +11,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
   `@everyone`/`@here`/`@room`, room bot messages) and add other words to look out for, like
   `tom, ttp, thomas`. The notification says why it fired, e.g. "Amy said “ttp”", and the line
   under the switch shows what it's listening for.
+  ([#15](https://github.com/thattomperson/wavez-tools/pull/15))
 - **Auto-leave** has a cog with rules: leave when N people are waiting, after your next N plays,
   or after a set time (sleep timer), and optionally turn off Auto-join too. The line under the
   name counts down what happens next, e.g. "Leaving after 2 more songs".
