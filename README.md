@@ -125,6 +125,11 @@ are in `src/ui/components.ts`.
 A switch is a `ToggleTool` (`kind: 'toggle'`) with an `id` and an `enable()` that starts the
 behaviour and returns a function that stops it; see `src/tools/auto-woot.ts`.
 
+For a screen that updates live, keep the changing state in a signal from `@preact/signals-core`
+and pass it (or a function that reads it) to `h()`: only that node updates. `ctx.nextSong` is
+already a signal, so `h('b', null, computed(() => nextSong.value.status))` follows it. See
+`src/tools/room-info.ts`.
+
 Tools can also be written as `.tsx`: JSX compiles to the same `h()` helper (no React), with HTML
 attribute names like `class` and `for`. See `src/tools/auto-leave.tsx`.
 

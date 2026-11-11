@@ -1,5 +1,8 @@
 // Keeps track of the next song in the active playlist and its opcheck, and
-// re-checks whenever the room's playback changes.
+// re-checks whenever the room's playback changes. The store is a read-only
+// signal of the state, so reading `nextSong.value` in an effect or a live h()
+// binding re-runs it when the state changes.
+import { computed, signal, type ReadonlySignal } from '@preact/signals-core';
 import type { PlaylistSummary, PlaylistTrack } from './api';
 import { requireBridge } from './bridge';
 import { opcheck, type OpcheckResult } from './opcheck';
@@ -10,10 +13,8 @@ export type NextSongState =
   | { status: 'ready'; playlist: PlaylistSummary; track: PlaylistTrack; result: OpcheckResult }
   | { status: 'failed'; playlist?: PlaylistSummary; track?: PlaylistTrack; error: string };
 
-export interface NextSongStore {
-  get(): NextSongState;
+export interface NextSongStore extends ReadonlySignal<NextSongState> {
   refresh(): void;
-  subscribe(fn: (state: NextSongState) => void): () => void;
   dispose(): void;
 }
 
@@ -21,19 +22,18 @@ export interface NextSongStore {
 const PLAYBACK_SETTLE_MS = 2500;
 
 export function createNextSongStore(): NextSongStore {
-  let state: NextSongState = { status: 'loading' };
+  const state = signal<NextSongState>({ status: 'loading' });
   let run = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const listeners = new Set<(state: NextSongState) => void>();
 
   const set = (next: NextSongState) => {
-    state = next;
-    for (const fn of listeners) fn(state);
+    state.value = next;
   };
 
   const refresh = async () => {
     const id = ++run;
-    set({ status: 'loading', playlist: state.playlist, track: state.track });
+    const { playlist, track } = state.peek();
+    set({ status: 'loading', playlist, track });
     let found: { playlist: PlaylistSummary; track: PlaylistTrack } | undefined;
     try {
       found = await getNextTrack();
@@ -52,18 +52,15 @@ export function createNextSongStore(): NextSongStore {
   });
   void refresh();
 
-  return {
-    get: () => state,
-    refresh: () => void refresh(),
-    subscribe(fn) {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
+  return Object.assign(
+    computed(() => state.value),
+    {
+      refresh: () => void refresh(),
+      dispose() {
+        run++;
+        clearTimeout(timer);
+        unsubscribe();
+      },
     },
-    dispose() {
-      run++;
-      clearTimeout(timer);
-      unsubscribe();
-      listeners.clear();
-    },
-  };
+  );
 }
