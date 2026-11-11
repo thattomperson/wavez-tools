@@ -7,7 +7,7 @@ Guidance for Claude (and anyone else) working in this repo.
 WavezFM Tools is a bookmarklet that adds a small panel to WavezFM room pages. The panel header
 always shows the next song in your active playlist and whether the room bot says it's OP. Below it
 is a list of tools: screen tools (Queue check, Next song details, Room info, Playlist info) and
-on/off switches (AutoWoot, Auto-move OP songs, Auto-join, Auto-leave, Desktop notifications). See `README.md` for the
+on/off switches (AutoWoot, Auto-move OP songs, Auto-join, Auto-leave, Notifications). See `README.md` for the
 user-facing description, install steps and the full file layout.
 
 The bookmark itself is a tiny loader that fetches `wavez-tools.min.js` from GitHub Pages, so

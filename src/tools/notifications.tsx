@@ -1,6 +1,7 @@
-// Desktop notifications for chat that's meant for you: @mentions, and messages
+// Notifications for chat that's meant for you: @mentions, and messages
 // from the room bot (its notices to you and private replies you didn't ask
-// this script for). Only fires while you're looking at another tab or app.
+// this script for). Each match can show a desktop notification (only while
+// you're in another tab or app) and play a sound (any time); both are options.
 //
 // Bot messages can carry buttons. Browsers only allow buttons on a
 // notification shown by a service worker, and a bookmarklet can't register
@@ -9,9 +10,11 @@
 // back to the room with a small card that has the real buttons.
 //
 // What counts as "for you" is set under the switch's cog: @your name, @staff,
-// room-wide pings, bot messages, and a list of extra words.
+// room-wide pings, bot messages, and a list of extra words, plus how to tell
+// you: desktop notification, sound, or both.
 import { computed, effect, signal } from '@preact/signals-core';
 import { h } from '../ui/dom';
+import { playSound, primeSound } from '../lib/sound';
 import { closeNotice, showNotice, type NoticeButton } from '../ui/notice';
 import { isOwnCommand, sendBotCommand, type BotEmbed, type BotPrivateReply } from '../wavez/bot';
 import { requireBridge, type ChatMessage, type RoomState } from '../wavez/bridge';
@@ -54,9 +57,21 @@ interface NotifySettings {
   bot: boolean;
   /** Extra words to look out for anywhere in a message, without the @. */
   words: string[];
+  /** Show a desktop notification while you're in another tab or app. */
+  desktop: boolean;
+  /** Play the notification sound, even while you're looking at the room. */
+  sound: boolean;
 }
 
-const DEFAULTS: NotifySettings = { name: true, staff: true, room: true, bot: true, words: [] };
+const DEFAULTS: NotifySettings = {
+  name: true,
+  staff: true,
+  room: true,
+  bot: true,
+  words: [],
+  desktop: true,
+  sound: false,
+};
 type Flag = Exclude<keyof NotifySettings, 'words'>;
 
 // The running switch and the options under the cog both follow this.
@@ -71,7 +86,15 @@ function loadSettings(): NotifySettings {
   }
   const flag = (key: Flag) => (typeof saved[key] === 'boolean' ? (saved[key] as boolean) : DEFAULTS[key]);
   const words = Array.isArray(saved.words) ? parseWords(saved.words.filter((w) => typeof w === 'string').join(',')) : [];
-  return { name: flag('name'), staff: flag('staff'), room: flag('room'), bot: flag('bot'), words };
+  return {
+    name: flag('name'),
+    staff: flag('staff'),
+    room: flag('room'),
+    bot: flag('bot'),
+    words,
+    desktop: flag('desktop'),
+    sound: flag('sound'),
+  };
 }
 
 function setSettings(next: NotifySettings) {
@@ -101,34 +124,51 @@ function summary(s: NotifySettings): string {
     s.words.length && (s.words.length === 1 ? `"${s.words[0]}"` : `${s.words.length} words`),
     s.bot && 'bot',
   ].filter(Boolean);
-  return parts.length ? `On: ${parts.join(', ')}` : 'On: nothing picked, open the cog';
+  if (!parts.length) return 'On: nothing picked, open the cog';
+  const desktop = s.desktop && desktopState();
+  const how = [desktop === 'granted' && 'desktop', desktop === 'blocked' && 'desktop blocked', s.sound && 'sound'].filter(Boolean);
+  if (!how.length) return `On: ${parts.join(', ')} · no desktop or sound picked`;
+  return `On: ${parts.join(', ')} · ${how.join(' + ')}`;
 }
+
+/** Where desktop notifications stand in this browser. */
+function desktopState(): 'granted' | 'blocked' | 'ask' {
+  if (typeof Notification === 'undefined' || Notification.permission === 'denied') return 'blocked';
+  return Notification.permission === 'granted' ? 'granted' : 'ask';
+}
+
+/** Ask for desktop permission. Needs a click or keypress, which the switch, cog and /wt command all are. */
+function askPermission() {
+  if (desktopState() !== 'ask') return;
+  void Notification.requestPermission().then((result) => {
+    log('permission answer:', result);
+    // Refresh the line under the switch.
+    settings.value = { ...settings.peek() };
+  });
+}
+
 
 export const notifications: ToggleTool = {
   kind: 'toggle',
   id: 'notifications',
   command: 'notify',
-  name: 'Desktop notifications',
+  name: 'Notifications',
   blurb: 'Off',
-  onBlurb: 'On: @mentions and bot messages while you’re away',
+  onBlurb: 'On: @mentions and bot messages',
   glyph: '@',
   subcommands: {
     test: {
-      help: 'checks notifications and sends a test one in 5 seconds',
+      help: 'checks notifications, then sends a test one (and plays the sound) in 5 seconds',
       run: runTest,
     },
   },
   options,
   enable(ctx: ToggleContext) {
-    if (typeof Notification === 'undefined') throw new Error('This browser has no desktop notifications.');
-    if (Notification.permission === 'denied') {
-      throw new Error('Notifications are blocked for wavez.fm. Allow them in the site settings and try again.');
-    }
-    // Needs a click or keypress, which the switch and /wt command both are.
-    log('switch on, permission:', Notification.permission);
-    if (Notification.permission === 'default') {
-      void Notification.requestPermission().then((result) => log('permission answer:', result));
-    }
+    const start = settings.peek();
+    log('switch on', { desktop: start.desktop && desktopState(), sound: start.sound });
+    // Switching on is a click or keypress, the moment browsers allow these.
+    if (start.desktop) askPermission();
+    if (start.sound) primeSound();
 
     const bridge = requireBridge();
     const seen = new Set<string>();
@@ -143,9 +183,14 @@ export const notifications: ToggleTool = {
     };
 
     const notify = (key: string, title: string, lines: string[], buttons: NoticeButton[]): string => {
-      log('notify?', { title, lines, buttons: buttons.map((b) => b.label) });
-      if (Notification.permission !== 'granted') return `not shown: permission is "${Notification.permission}"`;
-      if (isWatching()) return 'not shown: you were looking at the room';
+      const s = settings.peek();
+      log('notify?', { title, lines, buttons: buttons.map((b) => b.label), desktop: s.desktop, sound: s.sound });
+      const sound = s.sound ? 'played sound' : null;
+      if (s.sound) playSound().catch((err) => log('sound failed:', err));
+      const done = (why: string) => [sound, why].filter(Boolean).join(', ');
+      if (!s.desktop) return done('desktop notifications are off in the options');
+      if (desktopState() !== 'granted') return done(`no desktop notification: permission is "${Notification.permission}"`);
+      if (isWatching()) return done('no desktop notification: you were looking at the room');
       log('showing notification', title);
       let body = clip(lines.join('\n'));
       const live = buttons.filter((b) => !b.disabled);
@@ -158,7 +203,7 @@ export const notifications: ToggleTool = {
         n.close();
         if (buttons.length) showNotice({ title, lines, buttons });
       };
-      return 'notified';
+      return done('notified');
     };
 
     const onChat = (message: ChatMessage) => {
@@ -298,22 +343,26 @@ function describePayload(payload: unknown): string {
 }
 
 function runTest(): string[] {
+  const s = settings.peek();
   const lines: string[] = [];
-  if (typeof Notification === 'undefined') return ['This browser has no desktop notifications.'];
   lines.push(`Switch: ${diag.running ? 'on' : 'off (turn it on with /wt notify on)'}`);
-  lines.push(`Browser permission: ${Notification.permission}`);
-  if (Notification.permission === 'denied') {
-    lines.push('Notifications are blocked for this site. Click the icon left of the address bar to allow them.');
-    return lines;
+  lines.push(`Desktop notifications: ${s.desktop ? 'on' : 'off'}, browser permission: ${typeof Notification === 'undefined' ? 'not supported' : Notification.permission}`);
+  lines.push(`Sound: ${s.sound ? 'on' : 'off'}`);
+  if (s.desktop && desktopState() === 'blocked') {
+    lines.push('Desktop notifications are blocked for this site. Click the icon left of the address bar to allow them.');
   }
-  if (Notification.permission === 'default') void Notification.requestPermission();
+  if (s.desktop) askPermission();
+  if (s.sound) primeSound();
   lines.push(`Chat messages seen since it was turned on: ${diag.chatEvents}`);
   if (diag.lastPayload) lines.push(`Last one: ${diag.lastPayload}`);
   if (diag.lastVerdict) lines.push(`Result: ${diag.lastVerdict}`);
-  lines.push('Sending a test notification in 5 seconds. Switch to another tab now.');
+  if (!s.desktop && !s.sound) return [...lines, 'Nothing to test: tick desktop notifications or sound under the cog.'];
+  lines.push('Testing in 5 seconds. Switch to another tab now.');
   setTimeout(() => {
-    if (Notification.permission !== 'granted') return;
-    new Notification('WavezFM Tools', { body: 'Test notification. If you see this, notifications work.', icon: siteIcon() });
+    if (s.sound) playSound().catch((err) => log('sound failed:', err));
+    if (s.desktop && desktopState() === 'granted') {
+      new Notification('WavezFM Tools', { body: 'Test notification. If you see this, notifications work.', icon: siteIcon() });
+    }
   }, TEST_DELAY_MS);
   return lines;
 }
@@ -360,8 +409,8 @@ function matchReason(content: string, state: RoomState, s: NotifySettings): stri
 
 // --- options under the cog --------------------------------------------------------
 
-function Check(props: { flag: Flag; label: string; hint: string }) {
-  const { flag, label, hint } = props;
+function Check(props: { flag: Flag; label: string; hint: string; onTick?: () => void }) {
+  const { flag, label, hint, onTick } = props;
   const id = `wt-notify-${flag}`;
   const on = computed(() => settings.value[flag]);
   return (
@@ -370,7 +419,11 @@ function Check(props: { flag: Flag; label: string; hint: string }) {
         type="checkbox"
         id={id}
         checked={on}
-        onchange={(e) => setSettings({ ...settings.peek(), [flag]: (e.currentTarget as HTMLInputElement).checked })}
+        onchange={(e) => {
+          const checked = (e.currentTarget as HTMLInputElement).checked;
+          setSettings({ ...settings.peek(), [flag]: checked });
+          if (checked) onTick?.();
+        }}
       />
       <label for={id}>
         <span>{label}</span>
@@ -406,6 +459,23 @@ function options(): HTMLElement {
 
   return (
     <div class="wt-options">
+      <span class="wt-label">How</span>
+      <Check
+        flag="desktop"
+        label="Desktop notification"
+        hint="While you’re in another tab or app"
+        onTick={askPermission}
+      />
+      <Check
+        flag="sound"
+        label="Notification sound"
+        hint="Any time, even while you’re looking at the room"
+        onTick={() => {
+          primeSound();
+          playSound().catch((err) => log('sound failed:', err));
+        }}
+      />
+      <div class="wt-divider" />
       <span class="wt-label">Notify me about</span>
       <Check flag="name" label="My name" hint={names} />
       <Check
@@ -436,7 +506,7 @@ function options(): HTMLElement {
           }
         }}
       />
-      <span class="wt-hint">Only while you’re in another tab or app. Your own messages never notify.</span>
+      <span class="wt-hint">Your own messages never notify.</span>
     </div>
   );
 }

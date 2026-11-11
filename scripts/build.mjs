@@ -23,6 +23,8 @@ const result = await build({
   target: 'es2020',
   write: false,
   legalComments: 'none',
+  // The notification sound is inlined as a base64 string (src/lib/sound.ts).
+  loader: { '.mp3': 'base64' },
 });
 const script = result.outputFiles[0].text.trim();
 

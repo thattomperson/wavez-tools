@@ -7,6 +7,8 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Notifications** can play a sound when a message is for you, set under the cog. The sound plays
+  any time, even while you're looking at the room.
 - **Desktop notifications** has a cog: tick what should notify you (@your name, `@staff`,
   `@everyone`/`@here`/`@room`, room bot messages) and add other words to look out for, like
   `tom, ttp, thomas`. The notification says why it fired, e.g. "Amy said “ttp”", and the line
@@ -25,6 +27,8 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Changed
 
+- **Desktop notifications** is now called **Notifications**. Desktop notifications are a checkbox
+  under its cog (on by default), next to the new sound option, so you can have sound only.
 - The panel now updates only the part that changed (a status line, a chip, one line in Room info)
   instead of redrawing the header, the tool list or the whole screen. Flipping a switch or opening
   a cog no longer jumps focus, and Room info no longer flickers on every woot. Built on
