@@ -7,8 +7,9 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
-- **Notifications** can play a sound when a message is for you, set under the cog. The sound plays
-  any time, even while you're looking at the room.
+- **Notifications** can play a sound when a message is for you, set under the cog, with a volume
+  slider, a play button to hear it at that volume, and an option to only play it while you're in
+  another tab or app.
   ([#16](https://github.com/thattomperson/wavez-tools/pull/16))
 - **Desktop notifications** has a cog: tick what should notify you (@your name, `@staff`,
   `@everyone`/`@here`/`@room`, room bot messages) and add other words to look out for, like
@@ -30,6 +31,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 - **Desktop notifications** is now called **Notifications**. Desktop notifications are a checkbox
   under its cog (on by default), next to the new sound option, so you can have sound only.
+  The line under the switch now just says On or Off.
   ([#16](https://github.com/thattomperson/wavez-tools/pull/16))
 - The panel now updates only the part that changed (a status line, a chip, one line in Room info)
   instead of redrawing the header, the tool list or the whole screen. Flipping a switch or opening

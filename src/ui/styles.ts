@@ -107,6 +107,14 @@ ${P} .wt-stepper button:hover{background:#262a3d}
 ${P} .wt-stepper button:disabled{opacity:.35;cursor:default;background:none}
 ${P} .wt-stepper output{min-width:40px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
 ${P} .wt-options .wt-divider{margin:6px 0}
+${P} .wt-sub{display:flex;flex-direction:column;gap:4px;padding-left:24px}
+${P} .wt-volume{display:flex;align-items:center;gap:10px;min-height:44px;color:#9a9cae}
+${P} .wt-volume input{flex:1;min-width:0;height:24px;margin:0;accent-color:#8fb0ff;cursor:pointer}
+${P} .wt-volume output{min-width:36px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:#ecedf3}
+${P} .wt-volume.wt-rule-off{opacity:.45}
+${P} .wt-volume.wt-rule-off input,${P} .wt-play:disabled{cursor:default}
+${P} .wt-play{width:36px;height:36px;border:1px solid #3a3e55}
+${P} .wt-play svg{fill:currentColor}
 ${P} .wt-field{display:flex;flex-direction:column;gap:1px;padding-top:4px}
 ${P} .wt-input{width:100%;min-height:44px;padding:8px 10px;resize:vertical;border:1px solid #3a3e55;border-radius:8px;
   background:#11121a;color:#ecedf3;font:inherit}

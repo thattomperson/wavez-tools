@@ -1,7 +1,8 @@
 // Notifications for chat that's meant for you: @mentions, and messages
 // from the room bot (its notices to you and private replies you didn't ask
 // this script for). Each match can show a desktop notification (only while
-// you're in another tab or app) and play a sound (any time); both are options.
+// you're in another tab or app) and play a sound (any time, or only while
+// you're away), at a volume set under the cog.
 //
 // Bot messages can carry buttons. Browsers only allow buttons on a
 // notification shown by a service worker, and a bookmarklet can't register
@@ -12,14 +13,15 @@
 // What counts as "for you" is set under the switch's cog: @your name, @staff,
 // room-wide pings, bot messages, and a list of extra words, plus how to tell
 // you: desktop notification, sound, or both.
-import { computed, effect, signal } from '@preact/signals-core';
+import { computed, signal } from '@preact/signals-core';
 import { h } from '../ui/dom';
+import { icon } from '../ui/icons';
 import { playSound, primeSound } from '../lib/sound';
 import { closeNotice, showNotice, type NoticeButton } from '../ui/notice';
 import { isOwnCommand, sendBotCommand, type BotEmbed, type BotPrivateReply } from '../wavez/bot';
 import { requireBridge, type ChatMessage, type RoomState } from '../wavez/bridge';
 import { onIncoming, type Packet } from '../wavez/socket';
-import type { ToggleContext, ToggleTool } from './types';
+import type { ToggleTool } from './types';
 
 const BODY_MAX = 180;
 // Remember this many message ids so the same message from the bridge and the
@@ -59,8 +61,12 @@ interface NotifySettings {
   words: string[];
   /** Show a desktop notification while you're in another tab or app. */
   desktop: boolean;
-  /** Play the notification sound, even while you're looking at the room. */
+  /** Play the notification sound. */
   sound: boolean;
+  /** Only play it while you're in another tab or app, like desktop notifications. */
+  soundAway: boolean;
+  /** Sound volume, 0-100. */
+  volume: number;
 }
 
 const DEFAULTS: NotifySettings = {
@@ -71,8 +77,14 @@ const DEFAULTS: NotifySettings = {
   words: [],
   desktop: true,
   sound: false,
+  soundAway: false,
+  volume: 80,
 };
-type Flag = Exclude<keyof NotifySettings, 'words'>;
+type Flag = Exclude<keyof NotifySettings, 'words' | 'volume'>;
+
+const VOLUME_STEP = 5;
+const clampVolume = (n: number) => Math.min(100, Math.max(0, Math.round(n / VOLUME_STEP) * VOLUME_STEP));
+const play = () => playSound(settings.peek().volume / 100).catch((err) => log('sound failed:', err));
 
 // The running switch and the options under the cog both follow this.
 const settings = signal(loadSettings());
@@ -94,6 +106,8 @@ function loadSettings(): NotifySettings {
     words,
     desktop: flag('desktop'),
     sound: flag('sound'),
+    soundAway: flag('soundAway'),
+    volume: typeof saved.volume === 'number' ? clampVolume(saved.volume) : DEFAULTS.volume,
   };
 }
 
@@ -115,22 +129,6 @@ function parseWords(text: string): string[] {
   return [...new Set(words)];
 }
 
-/** The line under the switch's name: what it's listening for. */
-function summary(s: NotifySettings): string {
-  const parts = [
-    s.name && '@you',
-    s.staff && '@staff',
-    s.room && '@everyone',
-    s.words.length && (s.words.length === 1 ? `"${s.words[0]}"` : `${s.words.length} words`),
-    s.bot && 'bot',
-  ].filter(Boolean);
-  if (!parts.length) return 'On: nothing picked, open the cog';
-  const desktop = s.desktop && desktopState();
-  const how = [desktop === 'granted' && 'desktop', desktop === 'blocked' && 'desktop blocked', s.sound && 'sound'].filter(Boolean);
-  if (!how.length) return `On: ${parts.join(', ')} · no desktop or sound picked`;
-  return `On: ${parts.join(', ')} · ${how.join(' + ')}`;
-}
-
 /** Where desktop notifications stand in this browser. */
 function desktopState(): 'granted' | 'blocked' | 'ask' {
   if (typeof Notification === 'undefined' || Notification.permission === 'denied') return 'blocked';
@@ -142,8 +140,6 @@ function askPermission() {
   if (desktopState() !== 'ask') return;
   void Notification.requestPermission().then((result) => {
     log('permission answer:', result);
-    // Refresh the line under the switch.
-    settings.value = { ...settings.peek() };
   });
 }
 
@@ -154,7 +150,7 @@ export const notifications: ToggleTool = {
   command: 'notify',
   name: 'Notifications',
   blurb: 'Off',
-  onBlurb: 'On: @mentions and bot messages',
+  onBlurb: 'On',
   glyph: '@',
   subcommands: {
     test: {
@@ -163,7 +159,7 @@ export const notifications: ToggleTool = {
     },
   },
   options,
-  enable(ctx: ToggleContext) {
+  enable() {
     const start = settings.peek();
     log('switch on', { desktop: start.desktop && desktopState(), sound: start.sound });
     // Switching on is a click or keypress, the moment browsers allow these.
@@ -184,13 +180,14 @@ export const notifications: ToggleTool = {
 
     const notify = (key: string, title: string, lines: string[], buttons: NoticeButton[]): string => {
       const s = settings.peek();
-      log('notify?', { title, lines, buttons: buttons.map((b) => b.label), desktop: s.desktop, sound: s.sound });
-      const sound = s.sound ? 'played sound' : null;
-      if (s.sound) playSound().catch((err) => log('sound failed:', err));
+      const away = !isWatching();
+      log('notify?', { title, lines, buttons: buttons.map((b) => b.label), away, settings: s });
+      const sound = !s.sound ? null : s.soundAway && !away ? 'no sound: you were looking at the room' : 'played sound';
+      if (sound === 'played sound') void play();
       const done = (why: string) => [sound, why].filter(Boolean).join(', ');
       if (!s.desktop) return done('desktop notifications are off in the options');
       if (desktopState() !== 'granted') return done(`no desktop notification: permission is "${Notification.permission}"`);
-      if (isWatching()) return done('no desktop notification: you were looking at the room');
+      if (!away) return done('no desktop notification: you were looking at the room');
       log('showing notification', title);
       let body = clip(lines.join('\n'));
       const live = buttons.filter((b) => !b.disabled);
@@ -288,13 +285,11 @@ export const notifications: ToggleTool = {
       }
     });
     const stopSocket = onIncoming(onPacket);
-    const stopStatus = effect(() => ctx.setStatus(summary(settings.value)));
     log('listening to the bridge and the room socket');
     diag.running = true;
     return () => {
       diag.running = false;
       log('switch off');
-      stopStatus();
       unsubscribe();
       stopSocket();
       open.forEach((n) => n.close());
@@ -347,7 +342,7 @@ function runTest(): string[] {
   const lines: string[] = [];
   lines.push(`Switch: ${diag.running ? 'on' : 'off (turn it on with /wt notify on)'}`);
   lines.push(`Desktop notifications: ${s.desktop ? 'on' : 'off'}, browser permission: ${typeof Notification === 'undefined' ? 'not supported' : Notification.permission}`);
-  lines.push(`Sound: ${s.sound ? 'on' : 'off'}`);
+  lines.push(`Sound: ${s.sound ? `on at ${s.volume}%${s.soundAway ? ', only while away' : ''}` : 'off'}`);
   if (s.desktop && desktopState() === 'blocked') {
     lines.push('Desktop notifications are blocked for this site. Click the icon left of the address bar to allow them.');
   }
@@ -359,7 +354,7 @@ function runTest(): string[] {
   if (!s.desktop && !s.sound) return [...lines, 'Nothing to test: tick desktop notifications or sound under the cog.'];
   lines.push('Testing in 5 seconds. Switch to another tab now.');
   setTimeout(() => {
-    if (s.sound) playSound().catch((err) => log('sound failed:', err));
+    if (s.sound) void play();
     if (s.desktop && desktopState() === 'granted') {
       new Notification('WavezFM Tools', { body: 'Test notification. If you see this, notifications work.', icon: siteIcon() });
     }
@@ -441,6 +436,43 @@ function currentUser(): RoomState['currentUser'] {
   }
 }
 
+/** The volume slider, its percentage and a play button to hear it at that volume. */
+function VolumeRow() {
+  const off = computed(() => !settings.value.sound);
+  const volume = computed(() => settings.value.volume);
+  return (
+    <div class={computed(() => (off.value ? 'wt-volume wt-rule-off' : 'wt-volume'))}>
+      {icon('volume', 16)}
+      <input
+        type="range"
+        id="wt-notify-volume"
+        aria-label="Notification volume"
+        min="0"
+        max="100"
+        step={String(VOLUME_STEP)}
+        value={computed(() => String(volume.value))}
+        disabled={off}
+        oninput={(e) => setSettings({ ...settings.peek(), volume: clampVolume(Number((e.currentTarget as HTMLInputElement).value)) })}
+      />
+      <output for="wt-notify-volume" aria-live="polite">
+        {computed(() => `${volume.value}%`)}
+      </output>
+      <button
+        type="button"
+        class="wt-icon-btn wt-play"
+        aria-label="Play the notification sound at this volume"
+        disabled={off}
+        onclick={() => {
+          primeSound();
+          void play();
+        }}
+      >
+        {icon('play', 14)}
+      </button>
+    </div>
+  );
+}
+
 function options(): HTMLElement {
   const me = currentUser();
   const names = me
@@ -469,12 +501,16 @@ function options(): HTMLElement {
       <Check
         flag="sound"
         label="Notification sound"
-        hint="Any time, even while you’re looking at the room"
+        hint="Plays at the volume below"
         onTick={() => {
           primeSound();
-          playSound().catch((err) => log('sound failed:', err));
+          void play();
         }}
       />
+      <div class="wt-sub">
+        <Check flag="soundAway" label="Only when I’m away" hint="While you’re in another tab or app" />
+        <VolumeRow />
+      </div>
       <div class="wt-divider" />
       <span class="wt-label">Notify me about</span>
       <Check flag="name" label="My name" hint={names} />

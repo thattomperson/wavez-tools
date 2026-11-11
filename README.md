@@ -22,8 +22,8 @@ Tools in the panel:
   they're done, and can turn Auto-join off too. The line under the name says what happens next,
   e.g. "Leaving after 2 more songs" or "Leaving when 1 more person joins the queue"
 - **Notifications** (switch): tells you when a chat message is for you. The cog picks how: a
-  desktop notification (only while you're in another tab or app) and/or a notification sound (any
-  time). It also picks what counts: @your name, `@staff` (if you're a bouncer or above),
+  desktop notification (only while you're in another tab or app) and/or a notification sound, with
+  a volume slider and a play button to try it, and an option to only play it while you're away. It also picks what counts: @your name, `@staff` (if you're a bouncer or above),
   `@everyone`/`@here`/`@room`, room bot messages, and a list of other words to look out for (e.g.
   `tom, ttp, thomas`, matched as whole words). The browser asks for permission when desktop
   notifications are first switched on. Browsers don't allow buttons on notifications from a web
