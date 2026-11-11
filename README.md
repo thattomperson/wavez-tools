@@ -21,13 +21,14 @@ Tools in the panel:
   N plays, or after a set time (sleep timer). The plays and timer rules switch Auto-leave off once
   they're done, and can turn Auto-join off too. The line under the name says what happens next,
   e.g. "Leaving after 2 more songs" or "Leaving when 1 more person joins the queue"
-- **Desktop notifications** (switch): a desktop notification when a chat message is for you,
-  while you're in another tab or app. The cog picks what counts: @your name, `@staff` (if you're a
-  bouncer or above), `@everyone`/`@here`/`@room`, room bot messages, and a list of other words to
-  look out for (e.g. `tom, ttp, thomas`, matched as whole words). The browser asks for permission
-  the first time you turn it on. Browsers don't allow buttons on notifications from a web page, so
-  a bot message's buttons are listed in the notification instead; click it to get back to the room
-  with a card that has the real buttons
+- **Notifications** (switch): tells you when a chat message is for you. The cog picks how: a
+  desktop notification (only while you're in another tab or app) and/or a notification sound, with
+  a volume slider and a play button to try it, and an option to only play it while you're away. It also picks what counts: @your name, `@staff` (if you're a bouncer or above),
+  `@everyone`/`@here`/`@room`, room bot messages, and a list of other words to look out for (e.g.
+  `tom, ttp, thomas`, matched as whole words). The browser asks for permission when desktop
+  notifications are first switched on. Browsers don't allow buttons on notifications from a web
+  page, so a bot message's buttons are listed in the notification instead; click it to get back to
+  the room with a card that has the real buttons
 
 Switches (and the settings under their cogs) are remembered between runs and stop when the panel is closed.
 
@@ -40,7 +41,8 @@ the room; the answer shows up as a small note above the chat box.
   `/wt notify on|off`:
   flip a switch (leave off `on|off` to toggle it)
 - `/wt notify test`: says whether notifications are allowed, what the last chat message looked
-  like and why it did or didn't notify, then sends a test notification after 5 seconds
+  like and why it did or didn't notify, then sends a test notification and plays the sound after
+  5 seconds
 - `/wt status`: which switches are on
 - `/wt next`: your next song and its opcheck
 - `/wt help`: the list above
@@ -96,7 +98,8 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/wavez/socket.ts`, `bot.ts` | Private bot commands over the page's own room WebSocket |
 | `src/config.ts` | Opcheck bot user id and command prefix |
 | `src/wavez/tracks.ts` | Track links, names and "next track" logic |
-| `src/lib/` | Small shared helpers |
+| `src/lib/` | Small shared helpers, including the notification sound player |
+| `src/assets/` | The notification sound, bundled into the script |
 
 ## Adding a tool
 
