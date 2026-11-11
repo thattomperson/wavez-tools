@@ -7,6 +7,10 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Auto-leave** has a cog with rules: leave when N people are waiting, after your next N plays,
+  or after a set time (sleep timer), and optionally turn off Auto-join too. The line under the
+  name counts down what happens next, e.g. "Leaving after 2 more songs".
+
 - `/wt notify test`: checks why desktop notifications aren't showing (browser permission, the
   last chat message seen and what happened to it) and sends a test notification after 5 seconds.
   ([#11](https://github.com/thattomperson/wavez-tools/pull/11))

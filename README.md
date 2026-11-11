@@ -15,8 +15,12 @@ Tools in the panel:
 - **Auto-move OP songs** (switch): whenever the next song is OP, moves it to the end of the playlist.
   Stops after 10 in a row until a song passes
 - **Auto-join when queue is empty** (switch): joins the DJ queue when nobody else is waiting
-- **Auto-leave when others are queued** (switch): leaves the queue once someone else is waiting,
-  but never while your song is playing. With both on, you fill gaps without holding anyone up
+- **Auto-leave** (switch): leaves the DJ queue when one of its rules hits, but never while your
+  song is playing. The cog next to the switch opens the rules: when N other people are waiting
+  (on by default with 1, so with Auto-join you fill gaps without holding anyone up), after your next
+  N plays, or after a set time (sleep timer). The plays and timer rules switch Auto-leave off once
+  they're done, and can turn Auto-join off too. The line under the name says what happens next,
+  e.g. "Leaving after 2 more songs" or "Leaving when 1 more person joins the queue"
 - **Desktop notifications** (switch): a desktop notification when someone @mentions you (your
   username or display name, `@everyone`/`@here`/`@room`, or `@staff` if you're a bouncer or above), or when the room bot sends you a
   notice or a private reply you didn't ask the panel for. Only fires while you're in another tab
@@ -24,7 +28,7 @@ Tools in the panel:
   buttons on notifications from a web page, so a bot message's buttons are listed in the
   notification instead; click it to get back to the room with a card that has the real buttons
 
-Switches are remembered between runs and stop when the panel is closed.
+Switches (and Auto-leave's rules) are remembered between runs and stop when the panel is closed.
 
 ## Chat commands
 
