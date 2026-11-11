@@ -125,6 +125,9 @@ are in `src/ui/components.ts`.
 A switch is a `ToggleTool` (`kind: 'toggle'`) with an `id` and an `enable()` that starts the
 behaviour and returns a function that stops it; see `src/tools/auto-woot.ts`.
 
+Tools can also be written as `.tsx`: JSX compiles to the same `h()` helper (no React), with HTML
+attribute names like `class` and `for`. See `src/tools/auto-leave.tsx`.
+
 Then add it to the `tools` array in `src/tools/index.ts`.
 
 The bridge is documented in the [Room Extension API](https://github.com/WavezFM/WavezFM-Extension-API).

@@ -204,82 +204,128 @@ function run(ctx: ToggleContext): () => void {
 
 // --- options under the cog ------------------------------------------------------
 
-function options(): HTMLElement {
-  const setRule = (key: RuleKey, patch: Partial<Rule>) => setSettings({ ...settings, [key]: { ...settings[key], ...patch } });
+function setRule(key: RuleKey, patch: Partial<Rule>) {
+  setSettings({ ...settings, [key]: { ...settings[key], ...patch } });
+}
 
-  const ruleRow = (key: RuleKey, text: (n: number) => string, hint: string, unit: string, short: (n: number) => string) => {
-    const { min, max, step } = LIMITS[key];
-    const id = `wt-leave-${key}`;
-    const box = h('input', { type: 'checkbox', id, onchange: () => setRule(key, { on: box.checked }) });
-    const name = h('span');
-    const value = h('output', { 'aria-live': 'polite' });
-    const bump = (dir: number) => {
-      setRule(key, { on: true, n: Math.min(max, Math.max(min, settings[key].n + dir * step)) });
-    };
-    const less = h('button', { type: 'button', 'aria-label': `Fewer ${unit}`, onclick: () => bump(-1) }, icon('minus', 12));
-    const more = h('button', { type: 'button', 'aria-label': `More ${unit}`, onclick: () => bump(1) }, icon('plus', 12));
-    const row = h(
-      'div',
-      { class: 'wt-rule' },
-      box,
-      h('label', { for: id }, name, h('span', { class: 'wt-hint' }, hint)),
-      h('span', { class: 'wt-stepper' }, less, value, more),
-    );
-    const sync = () => {
-      const rule = settings[key];
-      box.checked = rule.on;
-      row.classList.toggle('wt-rule-off', !rule.on);
-      name.textContent = text(rule.n);
-      value.textContent = short(rule.n);
-      less.disabled = rule.n <= min;
-      more.disabled = rule.n >= max;
-    };
-    return { row, sync };
+/** One rule: a checkbox, its wording, and a -/+ stepper. Returns the row and a function that redraws it. */
+function RuleRow(props: {
+  rule: RuleKey;
+  text: (n: number) => string;
+  hint: string;
+  unit: string;
+  short: (n: number) => string;
+}) {
+  const { rule: key, text, hint, unit, short } = props;
+  const { min, max, step } = LIMITS[key];
+  const id = `wt-leave-${key}`;
+  const bump = (dir: number) => setRule(key, { on: true, n: Math.min(max, Math.max(min, settings[key].n + dir * step)) });
+
+  const box = (
+    <input type="checkbox" id={id} onchange={(e) => setRule(key, { on: (e.currentTarget as HTMLInputElement).checked })} />
+  ) as HTMLInputElement;
+  const name = <span />;
+  const value = <output aria-live="polite" />;
+  const less = (
+    <button type="button" aria-label={`Fewer ${unit}`} onclick={() => bump(-1)}>
+      {icon('minus', 12)}
+    </button>
+  ) as HTMLButtonElement;
+  const more = (
+    <button type="button" aria-label={`More ${unit}`} onclick={() => bump(1)}>
+      {icon('plus', 12)}
+    </button>
+  ) as HTMLButtonElement;
+  const row = (
+    <div class="wt-rule">
+      {box}
+      <label for={id}>
+        {name}
+        <span class="wt-hint">{hint}</span>
+      </label>
+      <span class="wt-stepper">
+        {less}
+        {value}
+        {more}
+      </span>
+    </div>
+  );
+
+  const sync = () => {
+    const rule = settings[key];
+    box.checked = rule.on;
+    row.classList.toggle('wt-rule-off', !rule.on);
+    name.textContent = text(rule.n);
+    value.textContent = short(rule.n);
+    less.disabled = rule.n <= min;
+    more.disabled = rule.n >= max;
   };
+  syncers.set(row, sync);
+  sync();
+  return row;
+}
+
+// Redraw functions for the rows on screen, keyed by row so they go with it.
+const syncers = new WeakMap<Element, () => void>();
+
+function options(): HTMLElement {
+  const stopJoin = (
+    <input
+      type="checkbox"
+      id="wt-leave-stopjoin"
+      onchange={(e) => setSettings({ ...settings, stopJoin: (e.currentTarget as HTMLInputElement).checked })}
+    />
+  ) as HTMLInputElement;
 
   const rows = [
-    ruleRow('waiting', (n) => (n === 1 ? 'When anyone else is waiting' : `When ${n} people are waiting`), 'Not counting you or the DJ', 'people', String),
-    ruleRow('plays', (n) => `After my next ${plural(n, 'play', 'plays')}`, 'Counted from when you switch it on', 'plays', String),
-    ruleRow('timer', (n) => `After ${minutes(n)}`, 'Sleep timer, from when you switch it on', 'minutes', (n) =>
-      n < 60 ? `${n}m` : `${String(+(n / 60).toFixed(2))}h`,
-    ),
+    <RuleRow
+      rule="waiting"
+      text={(n) => (n === 1 ? 'When anyone else is waiting' : `When ${n} people are waiting`)}
+      hint="Not counting you or the DJ"
+      unit="people"
+      short={String}
+    />,
+    <RuleRow
+      rule="plays"
+      text={(n) => `After my next ${plural(n, 'play', 'plays')}`}
+      hint="Counted from when you switch it on"
+      unit="plays"
+      short={String}
+    />,
+    <RuleRow
+      rule="timer"
+      text={(n) => `After ${minutes(n)}`}
+      hint="Sleep timer, from when you switch it on"
+      unit="minutes"
+      short={(n) => (n < 60 ? `${n}m` : `${String(+(n / 60).toFixed(2))}h`)}
+    />,
   ];
 
-  const stopJoin = h('input', {
-    type: 'checkbox',
-    id: 'wt-leave-stopjoin',
-    onchange: () => setSettings({ ...settings, stopJoin: stopJoin.checked }),
-  });
-
-  const el = h(
-    'div',
-    { class: 'wt-options' },
-    h('span', { class: 'wt-label' }, 'Leave when any of these happens'),
-    ...rows.map((r) => r.row),
-    h('div', { class: 'wt-divider' }),
-    h(
-      'div',
-      { class: 'wt-rule' },
-      stopJoin,
-      h(
-        'label',
-        { for: 'wt-leave-stopjoin' },
-        h('span', null, 'Also turn off Auto-join'),
-        h('span', { class: 'wt-hint' }, "When the plays or timer rule is done, so you don't rejoin"),
-      ),
-    ),
-    h(
-      'span',
-      { class: 'wt-hint' },
-      "Never leaves mid-song: if a rule hits while you're playing, it waits for your song to end. The plays and timer rules switch Auto-leave off once they're done.",
-    ),
+  const el = (
+    <div class="wt-options">
+      <span class="wt-label">Leave when any of these happens</span>
+      {rows}
+      <div class="wt-divider" />
+      <div class="wt-rule">
+        {stopJoin}
+        <label for="wt-leave-stopjoin">
+          <span>Also turn off Auto-join</span>
+          <span class="wt-hint">When the plays or timer rule is done, so you don't rejoin</span>
+        </label>
+      </div>
+      <span class="wt-hint">
+        Never leaves mid-song: if a rule hits while you're playing, it waits for your song to end. The plays and timer
+        rules switch Auto-leave off once they're done.
+      </span>
+    </div>
   );
+
   const sync = () => {
-    rows.forEach((r) => r.sync());
+    rows.forEach((row) => syncers.get(row)?.());
     stopJoin.checked = settings.stopJoin;
   };
-  // Only this element changes the settings, so sync straight after each change.
-  // The listener goes when the element is thrown away on the next re-render.
+  // Redraw after each change. The listener goes once the panel re-renders and
+  // this element is thrown away.
   const listener = () => (el.isConnected ? sync() : listeners.delete(listener));
   listeners.add(listener);
   sync();
