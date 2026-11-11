@@ -21,14 +21,15 @@ Tools in the panel:
   N plays, or after a set time (sleep timer). The plays and timer rules switch Auto-leave off once
   they're done, and can turn Auto-join off too. The line under the name says what happens next,
   e.g. "Leaving after 2 more songs" or "Leaving when 1 more person joins the queue"
-- **Desktop notifications** (switch): a desktop notification when someone @mentions you (your
-  username or display name, `@everyone`/`@here`/`@room`, or `@staff` if you're a bouncer or above), or when the room bot sends you a
-  notice or a private reply you didn't ask the panel for. Only fires while you're in another tab
-  or app. The browser asks for permission the first time you turn it on. Browsers don't allow
-  buttons on notifications from a web page, so a bot message's buttons are listed in the
-  notification instead; click it to get back to the room with a card that has the real buttons
+- **Desktop notifications** (switch): a desktop notification when a chat message is for you,
+  while you're in another tab or app. The cog picks what counts: @your name, `@staff` (if you're a
+  bouncer or above), `@everyone`/`@here`/`@room`, room bot messages, and a list of other words to
+  look out for (e.g. `tom, ttp, thomas`, matched as whole words). The browser asks for permission
+  the first time you turn it on. Browsers don't allow buttons on notifications from a web page, so
+  a bot message's buttons are listed in the notification instead; click it to get back to the room
+  with a card that has the real buttons
 
-Switches (and Auto-leave's rules) are remembered between runs and stop when the panel is closed.
+Switches (and the settings under their cogs) are remembered between runs and stop when the panel is closed.
 
 ## Chat commands
 

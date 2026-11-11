@@ -7,11 +7,16 @@
 // one on wavez.fm (and the site's own worker wouldn't know what to do with a
 // click). So the notification lists the buttons, and clicking it brings you
 // back to the room with a small card that has the real buttons.
+//
+// What counts as "for you" is set under the switch's cog: @your name, @staff,
+// room-wide pings, bot messages, and a list of extra words.
+import { computed, effect, signal } from '@preact/signals-core';
+import { h } from '../ui/dom';
 import { closeNotice, showNotice, type NoticeButton } from '../ui/notice';
 import { isOwnCommand, sendBotCommand, type BotEmbed, type BotPrivateReply } from '../wavez/bot';
 import { requireBridge, type ChatMessage, type RoomState } from '../wavez/bridge';
 import { onIncoming, type Packet } from '../wavez/socket';
-import type { ToggleTool } from './types';
+import type { ToggleContext, ToggleTool } from './types';
 
 const BODY_MAX = 180;
 // Remember this many message ids so the same message from the bridge and the
@@ -34,6 +39,71 @@ const DUPLICATE = 'skipped: already handled';
 // Filter the console by "[notify]" to see just these.
 const log = (...args: unknown[]) => console.log('WavezFM Tools [notify]', ...args);
 
+// --- settings -------------------------------------------------------------------
+
+const STORAGE_KEY = 'wavez-tools:notifications';
+
+interface NotifySettings {
+  /** @username and @"Display Name". */
+  name: boolean;
+  /** @staff, while your room role is bouncer or above. */
+  staff: boolean;
+  /** @everyone, @here and @room. */
+  room: boolean;
+  /** Bot notices to you and bot private replies. */
+  bot: boolean;
+  /** Extra words to look out for anywhere in a message, without the @. */
+  words: string[];
+}
+
+const DEFAULTS: NotifySettings = { name: true, staff: true, room: true, bot: true, words: [] };
+type Flag = Exclude<keyof NotifySettings, 'words'>;
+
+// The running switch and the options under the cog both follow this.
+const settings = signal(loadSettings());
+
+function loadSettings(): NotifySettings {
+  let saved: Partial<Record<keyof NotifySettings, unknown>> = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') ?? {};
+  } catch {
+    // Fall back to the defaults.
+  }
+  const flag = (key: Flag) => (typeof saved[key] === 'boolean' ? (saved[key] as boolean) : DEFAULTS[key]);
+  const words = Array.isArray(saved.words) ? parseWords(saved.words.filter((w) => typeof w === 'string').join(',')) : [];
+  return { name: flag('name'), staff: flag('staff'), room: flag('room'), bot: flag('bot'), words };
+}
+
+function setSettings(next: NotifySettings) {
+  settings.value = next;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Storage blocked: settings just won't be remembered.
+  }
+}
+
+/** "tom, ttp,  Thomas" -> ["tom", "ttp", "thomas"]: trimmed, lower case, no @, no repeats. */
+function parseWords(text: string): string[] {
+  const words = text
+    .split(/[,\n]/)
+    .map((w) => w.trim().replace(/^@+/, '').toLowerCase())
+    .filter(Boolean);
+  return [...new Set(words)];
+}
+
+/** The line under the switch's name: what it's listening for. */
+function summary(s: NotifySettings): string {
+  const parts = [
+    s.name && '@you',
+    s.staff && '@staff',
+    s.room && '@everyone',
+    s.words.length && (s.words.length === 1 ? `"${s.words[0]}"` : `${s.words.length} words`),
+    s.bot && 'bot',
+  ].filter(Boolean);
+  return parts.length ? `On: ${parts.join(', ')}` : 'On: nothing picked, open the cog';
+}
+
 export const notifications: ToggleTool = {
   kind: 'toggle',
   id: 'notifications',
@@ -48,7 +118,8 @@ export const notifications: ToggleTool = {
       run: runTest,
     },
   },
-  enable() {
+  options,
+  enable(ctx: ToggleContext) {
     if (typeof Notification === 'undefined') throw new Error('This browser has no desktop notifications.');
     if (Notification.permission === 'denied') {
       throw new Error('Notifications are blocked for wavez.fm. Allow them in the site settings and try again.');
@@ -104,8 +175,10 @@ export const notifications: ToggleTool = {
       if (message.userId === me.id) return 'skipped: your own message';
       if (!firstSighting(message.id)) return DUPLICATE;
       const from = message.displayUsername || message.username || 'Someone';
-      const mentioned = mentionsMe(message.content ?? '', state);
-      log('mentions me:', mentioned);
+      const s = settings.peek();
+      const reason = matchReason(message.content ?? '', state, s);
+      const mentioned = reason !== null;
+      log('matches:', reason ?? 'nothing', { settings: s });
 
       if (isBot(message)) {
         log('is bot message', {
@@ -114,19 +187,20 @@ export const notifications: ToggleTool = {
           embedOwner: message.embed?.ownerUserId,
           buttons: message.embed?.buttons?.length ?? 0,
         });
-        const forMe =
-          mentioned ||
+        const sentToMe =
           message.targetUserIds?.includes(me.id) ||
           message.embed?.ownerUserId === me.id ||
           (message.ephemeral && !message.targetUserIds?.length);
+        if (sentToMe && !s.bot && !mentioned) return 'skipped: bot messages are turned off in the options';
+        const forMe = mentioned || sentToMe;
         log('bot message for me:', !!forMe);
         if (!forMe) return 'skipped: bot message not meant for you';
         const { lines, buttons } = fromBot(message.userId, message.content, message.embed);
         return notify(message.id, from, lines, buttons);
       }
-      if (mentioned) return notify(message.id, `${from} mentioned you`, [message.content], []);
       log('not a bot message');
-      return 'skipped: no mention of you';
+      if (reason) return notify(message.id, `${from} ${reason}`, [message.content], []);
+      return 'skipped: nothing you asked to be notified about';
     };
 
     const onPacket = (packet: Packet) => {
@@ -134,6 +208,7 @@ export const notifications: ToggleTool = {
         const reply = packet.payload as BotPrivateReply | null;
         log('bot private reply', reply);
         if (!reply) return;
+        if (!settings.peek().bot) return log('→ skipped: bot messages are turned off in the options');
         if (isOwnCommand(reply.commandId)) return log('→ skipped: reply to our own command (opcheck etc.)');
         if (!firstSighting(reply.id)) return log('→', DUPLICATE);
         const { lines, buttons } = fromBot(reply.botUserId, reply.content, reply.embed);
@@ -168,11 +243,13 @@ export const notifications: ToggleTool = {
       }
     });
     const stopSocket = onIncoming(onPacket);
+    const stopStatus = effect(() => ctx.setStatus(summary(settings.value)));
     log('listening to the bridge and the room socket');
     diag.running = true;
     return () => {
       diag.running = false;
       log('switch off');
+      stopStatus();
       unsubscribe();
       stopSocket();
       open.forEach((n) => n.close());
@@ -252,14 +329,116 @@ function escapeRegExp(text: string): string {
 // Room roles that @staff pings: bouncer and up.
 const STAFF_ROLES = new Set(['bouncer', 'manager', 'cohost', 'host']);
 
-/** True for @you (username or display name, quoted or not), room-wide pings, and @staff if you're staff. */
-function mentionsMe(content: string, state: RoomState): boolean {
+const isStaff = (role: string | null | undefined) => STAFF_ROLES.has(role?.toLowerCase() ?? '');
+
+/**
+ * Why a message is for you, as the end of the notification title ("mentioned
+ * you", "said “tom”"), or null if it isn't. Follows the options under the cog.
+ */
+function matchReason(content: string, state: RoomState, s: NotifySettings): string | null {
   const me = state.currentUser;
-  if (!me) return false;
-  const names = [me.username, me.displayUsername].filter(Boolean).map((n) => escapeRegExp(n.trim()));
-  const groups = ['everyone', 'here', 'room', ...(STAFF_ROLES.has(me.roomRole?.toLowerCase() ?? '') ? ['staff'] : [])];
-  const pattern = new RegExp(`@(?:"(?:${names.join('|')})"|(?:${names.join('|')})(?![\\w.-])|(?:${groups.join('|')})\\b)`, 'i');
-  return pattern.test(content);
+  if (!me) return null;
+  const test = (pattern: string) => new RegExp(pattern, 'i').test(content);
+  const any = (items: string[]) => items.map(escapeRegExp).join('|');
+  // A word ends where letters, digits, dots and dashes stop, so @tom doesn't match @tommy.
+  const end = '(?![\\w.-])';
+
+  if (s.name) {
+    const names = [me.username, me.displayUsername].filter(Boolean).map((n) => n.trim());
+    if (names.length && test(`@(?:"(?:${any(names)})"|(?:${any(names)})${end})`)) return 'mentioned you';
+  }
+  if (s.staff && isStaff(me.roomRole) && test(`@staff${end}`)) return 'pinged @staff';
+  if (s.room) {
+    const room = content.match(new RegExp(`@(everyone|here|room)${end}`, 'i'));
+    if (room) return `pinged @${room[1].toLowerCase()}`;
+  }
+  for (const word of s.words) {
+    if (test(`(?<![\\w.-])@?${escapeRegExp(word)}${end}`)) return `said “${word}”`;
+  }
+  return null;
+}
+
+// --- options under the cog --------------------------------------------------------
+
+function Check(props: { flag: Flag; label: string; hint: string }) {
+  const { flag, label, hint } = props;
+  const id = `wt-notify-${flag}`;
+  const on = computed(() => settings.value[flag]);
+  return (
+    <div class={computed(() => (on.value ? 'wt-rule' : 'wt-rule wt-rule-off'))}>
+      <input
+        type="checkbox"
+        id={id}
+        checked={on}
+        onchange={(e) => setSettings({ ...settings.peek(), [flag]: (e.currentTarget as HTMLInputElement).checked })}
+      />
+      <label for={id}>
+        <span>{label}</span>
+        <span class="wt-hint">{hint}</span>
+      </label>
+    </div>
+  );
+}
+
+function currentUser(): RoomState['currentUser'] {
+  try {
+    return requireBridge().room.getState()?.currentUser ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function options(): HTMLElement {
+  const me = currentUser();
+  const names = me
+    ? [`@${me.username}`, me.displayUsername && me.displayUsername !== me.username ? `@${me.displayUsername}` : null]
+        .filter(Boolean)
+        .join(' or ')
+    : '@your name';
+
+  // Saved when you leave the box or press Enter, so typing a comma doesn't rewrite what you typed.
+  const save = (e: Event) => {
+    const input = e.currentTarget as HTMLTextAreaElement;
+    const words = parseWords(input.value);
+    setSettings({ ...settings.peek(), words });
+    input.value = words.join(', ');
+  };
+
+  return (
+    <div class="wt-options">
+      <span class="wt-label">Notify me about</span>
+      <Check flag="name" label="My name" hint={names} />
+      <Check
+        flag="staff"
+        label="@staff"
+        hint={isStaff(me?.roomRole) ? 'You’re staff in this room' : 'Only while you’re a bouncer or above'}
+      />
+      <Check flag="room" label="@everyone, @here, @room" hint="Pings for the whole room" />
+      <Check flag="bot" label="Room bot messages" hint="Its notices to you and its private replies" />
+      <div class="wt-divider" />
+      <label class="wt-field" for="wt-notify-words">
+        <span>Other words</span>
+        <span class="wt-hint">Comma-separated, matched as whole words, with or without @</span>
+      </label>
+      <textarea
+        id="wt-notify-words"
+        class="wt-input"
+        rows="2"
+        placeholder="tom, ttp, thomas"
+        spellcheck="false"
+        value={settings.peek().words.join(', ')}
+        onchange={save}
+        onkeydown={(e) => {
+          const key = e as KeyboardEvent;
+          if (key.key === 'Enter' && !key.shiftKey) {
+            key.preventDefault();
+            (key.currentTarget as HTMLTextAreaElement).blur();
+          }
+        }}
+      />
+      <span class="wt-hint">Only while you’re in another tab or app. Your own messages never notify.</span>
+    </div>
+  );
 }
 
 /** True while you're looking at the room tab or its pop-out chat. */
