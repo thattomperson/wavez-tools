@@ -37,14 +37,13 @@ export function makeDraggable(panel: HTMLElement): Draggable {
   };
 
   let offset: Position | null = null;
-  const grip = h(
-    'button',
-    {
-      type: 'button',
-      class: 'wt-grip',
-      'aria-label': 'Move panel (drag, or use the arrow keys)',
-      title: 'Drag to move',
-      onpointerdown: (event) => {
+  const grip = (
+    <button
+      type="button"
+      class="wt-grip"
+      aria-label="Move panel (drag, or use the arrow keys)"
+      title="Drag to move"
+      onpointerdown={(event) => {
         const e = event as PointerEvent;
         if (e.button !== 0) return;
         const { left, top } = current();
@@ -52,14 +51,14 @@ export function makeDraggable(panel: HTMLElement): Draggable {
         grip.setPointerCapture(e.pointerId);
         panel.classList.add('wt-dragging');
         e.preventDefault();
-      },
-      onpointermove: (event) => {
+      }}
+      onpointermove={(event) => {
         const e = event as PointerEvent;
         if (offset) place({ left: e.clientX - offset.left, top: e.clientY - offset.top });
-      },
-      onpointerup: () => endDrag(),
-      onpointercancel: () => endDrag(),
-      onkeydown: (event) => {
+      }}
+      onpointerup={() => endDrag()}
+      onpointercancel={() => endDrag()}
+      onkeydown={(event) => {
         const e = event as KeyboardEvent;
         const step = e.shiftKey ? KEY_STEP * 3 : KEY_STEP;
         const moves: Record<string, [number, number]> = {
@@ -74,10 +73,11 @@ export function makeDraggable(panel: HTMLElement): Draggable {
         const { left, top } = current();
         place({ left: left + move[0], top: top + move[1] });
         if (pos) savePosition(pos);
-      },
-    },
-    icon('grip'),
-  );
+      }}
+    >
+      {icon('grip')}
+    </button>
+  ) as HTMLButtonElement;
 
   function endDrag() {
     if (!offset) return;

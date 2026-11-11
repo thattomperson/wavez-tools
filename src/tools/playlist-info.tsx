@@ -20,24 +20,18 @@ export const playlistInfo: ScreenTool = {
     const total = tracks.reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
     setSubtitle(`${playlist.name} · ${tracks.length} tracks · ${formatDuration(total)}`);
     body.replaceChildren(
-      h(
-        'ol',
-        { class: 'wt-tracks' },
-        ...tracks.slice(0, PREVIEW_COUNT).map((track, i) =>
-          h(
-            'li',
-            { class: 'wt-track' },
-            h('span', { class: 'wt-track-n' }, String(i + 1)),
-            h(
-              'span',
-              { class: 'wt-track-text' },
-              h('span', { class: 'wt-ellipsis' }, trackTitle(track)),
-              h('span', { class: 'wt-ellipsis wt-muted' }, trackArtist(track)),
-            ),
-            h('span', { class: 'wt-muted' }, formatDuration(track.durationMs)),
-          ),
-        ),
-      ),
+      <ol class="wt-tracks">
+        {tracks.slice(0, PREVIEW_COUNT).map((track, i) => (
+          <li class="wt-track">
+            <span class="wt-track-n">{i + 1}</span>
+            <span class="wt-track-text">
+              <span class="wt-ellipsis">{trackTitle(track)}</span>
+              <span class="wt-ellipsis wt-muted">{trackArtist(track)}</span>
+            </span>
+            <span class="wt-muted">{formatDuration(track.durationMs)}</span>
+          </li>
+        ))}
+      </ol>,
     );
   },
 };

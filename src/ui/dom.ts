@@ -6,20 +6,19 @@ type Value = string | boolean | undefined;
 type Attrs = Record<string, Value | ReadonlySignal<Value> | ((event: Event) => void)>;
 type Component<P> = (props: P & { children?: Child[] }) => HTMLElement;
 
-// Small hyperscript helper: h('button', { class: 'wt-btn', onclick: fn }, 'Save').
-// Keys starting with "on" become listeners, true sets an empty attribute and
-// false/undefined skips it. Children can be nested arrays; null/false are skipped.
-//
-// It's also the JSX factory (see tsconfig.json), so in a .tsx file that
-// imports `h`, <button class="wt-btn" onclick={fn}>Save</button> does the
-// same. Attribute names are the HTML ones (class, for, aria-*), not React's.
+// The JSX factory (see tsconfig.json): in a .tsx file that imports `h`,
+// <button class="wt-btn" onclick={fn}>Save</button> makes a real <button>.
+// Attributes starting with "on" become listeners, true sets an empty attribute
+// and false/undefined skips it. Attribute names are the HTML ones (class, for,
+// aria-*), not React's. Children can be nested arrays; null/false are skipped.
 // A function as the tag is a component: it gets the attributes plus `children`.
+// Write markup as JSX rather than calling h() directly.
 //
 // Live updates use signals (@preact/signals-core):
-// - an attribute set to a signal follows it: { disabled: computed(() => busy.value) }
-// - a signal child is a text node that follows it: h('b', null, count)
+// - an attribute set to a signal follows it: disabled={computed(() => busy.value)}
+// - a signal child is a text node that follows it: <b>{count}</b>
 // - a function child re-runs when a signal it reads changes, and its nodes are
-//   swapped: h('div', null, () => (open.value ? details() : null))
+//   swapped: <div>{() => (open.value ? details() : null)}</div>
 // Only the node or region that reads a signal is touched. The effects behind
 // these belong to the enclosing scoped() call and stop when it's disposed.
 export function h<K extends keyof HTMLElementTagNameMap>(

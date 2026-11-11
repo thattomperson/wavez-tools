@@ -16,37 +16,33 @@ export const roomInfo: ScreenTool = {
     const state = signal$(requireState());
     const line = (fn: (s: RoomState) => string) => computed(() => fn(state.value));
     const playing = computed(() => !!state.value.playback);
-    const row = (label: string, value: Child) => [h('dt', null, label), h('dd', null, value)];
+    const row = (label: string, value: Child) => [<dt>{label}</dt>, <dd>{value}</dd>];
 
     body.replaceChildren(
-      h(
-        'div',
-        { class: 'wt-body' },
-        h(
-          'dl',
-          { class: 'wt-kv' },
-          row('Users', line((s) => String(s.room.activeUsersCount))),
-          row('Queue', line(({ queue }) => `${queue.count}${queue.isLocked ? ' (locked)' : ''}`)),
-          row(
+      <div class="wt-body">
+        <dl class="wt-kv">
+          {row('Users', line((s) => String(s.room.activeUsersCount)))}
+          {row('Queue', line(({ queue }) => `${queue.count}${queue.isLocked ? ' (locked)' : ''}`))}
+          {row(
             'Playing',
             line(({ playback }) =>
               playback
                 ? `${playback.artist ? `${playback.artist} - ` : ''}${playback.title} [${formatDuration(playback.durationMs)}]`
                 : 'Nothing',
             ),
-          ),
-          () => playing.value && row('DJ', line((s) => s.playback?.djUsername ?? '')),
-          row('Votes', line(({ votes }) => `${votes.woots} woot · ${votes.mehs} meh · ${votes.grabs} grab`)),
-          row(
+          )}
+          {() => playing.value && row('DJ', line((s) => s.playback?.djUsername ?? ''))}
+          {row('Votes', line(({ votes }) => `${votes.woots} woot · ${votes.mehs} meh · ${votes.grabs} grab`))}
+          {row(
             'You',
             line(({ queue, currentUser }) => {
               const me = currentUser && queue.entries.find((e) => e.userId === currentUser.id);
               if (me) return `#${me.position} in queue, ETA ${formatDuration(me.estimatedWaitMs)}`;
               return queue.isCurrentDj ? 'DJing now' : 'Not in queue';
             }),
-          ),
-        ),
-      ),
+          )}
+        </dl>
+      </div>,
     );
     watch(() => {
       const { room } = state.value;

@@ -79,11 +79,14 @@ function build(tools: Tool[], opts: PanelOptions): PanelHandle {
   const current = signal<Current | null>(null);
   // The tool whose screen is showing, or null for the pill and tool list.
   const inTool = computed(() => (collapsed.value ? null : current.value));
-  const panel = h('div', { id: PANEL_ID });
+  const panel = <div id={PANEL_ID} />;
   const drag = makeDraggable(panel);
 
-  const iconButton = (name: IconName, label: string, onclick: () => void) =>
-    h('button', { type: 'button', class: 'wt-icon-btn', 'aria-label': label, onclick }, icon(name));
+  const iconButton = (name: IconName, label: string, onclick: () => void) => (
+    <button type="button" class="wt-icon-btn" aria-label={label} onclick={onclick}>
+      {icon(name)}
+    </button>
+  );
 
   // --- header ---------------------------------------------------------------
 
@@ -101,51 +104,47 @@ function build(tools: Tool[], opts: PanelOptions): PanelHandle {
     return { label, chipText, chipTone, chipTitle: state.status === 'failed' ? state.error : undefined, dot };
   });
   const pillNodes = () => [
-    h('span', { class: computed(() => `wt-dot ${pill.value.dot && `wt-${pill.value.dot}`}`) }),
-    h(
-      'button',
-      {
-        type: 'button',
-        class: 'wt-pill-text wt-ellipsis',
-        title: computed(() => pill.value.label),
-        onclick: () => {
-          if (opts.pillTool) openTool(opts.pillTool);
-          else collapsed.value = false;
-        },
-      },
-      h('span', { class: 'wt-muted' }, 'Next: '),
-      computed(() => pill.value.label),
-    ),
-    h(
-      'span',
-      { class: computed(() => `wt-chip wt-${pill.value.chipTone}`), title: computed(() => pill.value.chipTitle) },
-      computed(() => pill.value.chipText),
-    ),
+    <span class={computed(() => `wt-dot ${pill.value.dot && `wt-${pill.value.dot}`}`)} />,
+    <button
+      type="button"
+      class="wt-pill-text wt-ellipsis"
+      title={computed(() => pill.value.label)}
+      onclick={() => {
+        if (opts.pillTool) openTool(opts.pillTool);
+        else collapsed.value = false;
+      }}
+    >
+      <span class="wt-muted">Next: </span>
+      {computed(() => pill.value.label)}
+    </button>,
+    <span class={computed(() => `wt-chip wt-${pill.value.chipTone}`)} title={computed(() => pill.value.chipTitle)}>
+      {computed(() => pill.value.chipText)}
+    </span>,
   ];
   const toolTitle = (cur: Current) => [
     iconButton('back', 'Back to tools', back),
-    h('div', { class: 'wt-title' }, h('b', { class: 'wt-ellipsis' }, cur.tool.name), cur.subtitle),
+    <div class="wt-title">
+      <b class="wt-ellipsis">{cur.tool.name}</b>
+      {cur.subtitle}
+    </div>,
   ];
-  const collapseButton = h(
-    'button',
-    {
-      type: 'button',
-      class: 'wt-icon-btn',
-      'aria-label': computed(() => (collapsed.value ? 'Expand' : 'Collapse')),
-      'aria-expanded': computed(() => String(!collapsed.value)),
-      onclick: () => (collapsed.value = !collapsed.value),
-    },
-    () => icon(collapsed.value ? 'expand' : 'collapse'),
-  );
-  const header = h(
-    'div',
-    { class: computed(() => (inTool.value ? 'wt-header wt-in-tool' : 'wt-header')) },
-    drag.grip,
-    () => {
-      const cur = inTool.value;
-      return cur ? toolTitle(cur) : pillNodes();
-    },
-    collapseButton,
+  const header = (
+    <div class={computed(() => (inTool.value ? 'wt-header wt-in-tool' : 'wt-header'))}>
+      {drag.grip}
+      {() => {
+        const cur = inTool.value;
+        return cur ? toolTitle(cur) : pillNodes();
+      }}
+      <button
+        type="button"
+        class="wt-icon-btn"
+        aria-label={computed(() => (collapsed.value ? 'Expand' : 'Collapse'))}
+        aria-expanded={computed(() => String(!collapsed.value))}
+        onclick={() => (collapsed.value = !collapsed.value)}
+      >
+        {() => icon(collapsed.value ? 'expand' : 'collapse')}
+      </button>
+    </div>
   );
 
   // --- switches -------------------------------------------------------------
@@ -211,12 +210,17 @@ function build(tools: Tool[], opts: PanelOptions): PanelHandle {
   // --- tool list --------------------------------------------------------------
 
   function screenRow(tool: ScreenTool) {
-    return h(
-      'button',
-      { type: 'button', class: 'wt-row', onclick: () => openTool(tool) },
-      h('span', { class: 'wt-glyph', 'aria-hidden': 'true' }, tool.glyph),
-      h('span', { class: 'wt-row-text' }, h('span', { class: 'wt-row-name' }, tool.name), h('span', { class: 'wt-muted' }, tool.blurb)),
-      icon('open', 14),
+    return (
+      <button type="button" class="wt-row" onclick={() => openTool(tool)}>
+        <span class="wt-glyph" aria-hidden="true">
+          {tool.glyph}
+        </span>
+        <span class="wt-row-text">
+          <span class="wt-row-name">{tool.name}</span>
+          <span class="wt-muted">{tool.blurb}</span>
+        </span>
+        {icon('open', 14)}
+      </button>
     );
   }
 
@@ -233,79 +237,76 @@ function build(tools: Tool[], opts: PanelOptions): PanelHandle {
       const note = st.note.value;
       return note ? { text: note, class: 'wt-done' } : { text: tool.blurb, class: 'wt-muted' };
     });
-    const row = h(
-      'div',
-      { class: 'wt-row' },
-      h('span', { class: 'wt-glyph', 'aria-hidden': 'true' }, tool.glyph),
-      h(
-        'label',
-        { class: 'wt-row-text', for: id },
-        h('span', { class: 'wt-row-name' }, tool.name),
-        h('span', { class: computed(() => line.value.class) }, computed(() => line.value.text)),
-      ),
-      tool.options &&
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'wt-icon-btn wt-cog',
-            'aria-label': `${tool.name} options`,
-            'aria-expanded': computed(() => String(st.open.value)),
-            'aria-controls': optionsId,
-            onclick: () => (st.open.value = !st.open.value),
-          },
-          icon('cog'),
-        ),
-      h(
-        'button',
-        {
-          type: 'button',
-          id,
-          class: 'wt-switch',
-          role: 'switch',
-          'aria-checked': computed(() => String(st.on.value)),
-          onclick: () => setToggle(tool, !st.on.peek()),
-        },
-        h('span'),
-      ),
+    const row = (
+      <div class="wt-row">
+        <span class="wt-glyph" aria-hidden="true">
+          {tool.glyph}
+        </span>
+        <label class="wt-row-text" for={id}>
+          <span class="wt-row-name">{tool.name}</span>
+          <span class={computed(() => line.value.class)}>{computed(() => line.value.text)}</span>
+        </label>
+        {tool.options && (
+          <button
+            type="button"
+            class="wt-icon-btn wt-cog"
+            aria-label={`${tool.name} options`}
+            aria-expanded={computed(() => String(st.open.value))}
+            aria-controls={optionsId}
+            onclick={() => (st.open.value = !st.open.value)}
+          >
+            {icon('cog')}
+          </button>
+        )}
+        <button
+          type="button"
+          id={id}
+          class="wt-switch"
+          role="switch"
+          aria-checked={computed(() => String(st.on.value))}
+          onclick={() => setToggle(tool, !st.on.peek())}
+        >
+          <span />
+        </button>
+      </div>
     );
     const { options } = tool;
     if (!options) return row;
-    return h(
-      'div',
-      { class: computed(() => (st.open.value ? 'wt-group wt-open' : 'wt-group')) },
-      row,
-      // The options are built when the cog opens and thrown away (bindings and all) when it closes.
-      () => st.open.value && h('div', { id: optionsId }, untracked(options)),
+    return (
+      <div class={computed(() => (st.open.value ? 'wt-group wt-open' : 'wt-group'))}>
+        {row}
+        {/* The options are built when the cog opens and thrown away (bindings and all) when it closes. */}
+        {() => st.open.value && <div id={optionsId}>{untracked(options)}</div>}
+      </div>
     );
   }
 
   const screens = tools.filter((t): t is ScreenTool => t.kind === 'screen');
   const toggles = tools.filter((t): t is ToggleTool => t.kind === 'toggle');
-  const list = h(
-    'div',
-    { class: 'wt-list' },
-    ...screens.map(screenRow),
-    screens.length > 0 && toggles.length > 0 && h('div', { class: 'wt-divider' }),
-    ...toggles.map(toggleRow),
+  const list = (
+    <div class="wt-list">
+      {screens.map(screenRow)}
+      {screens.length > 0 && toggles.length > 0 && <div class="wt-divider" />}
+      {toggles.map(toggleRow)}
+    </div>
   );
 
   // --- navigation -------------------------------------------------------------
 
-  const content = h(
-    'div',
-    { class: 'wt-content', hidden: collapsed },
-    () => (collapsed.value ? null : current.value ? current.value.body : list),
+  const content = (
+    <div class="wt-content" hidden={collapsed}>
+      {() => (collapsed.value ? null : current.value ? current.value.body : list)}
+    </div>
   );
-  panel.append(h('style', null, css), header, content);
+  panel.append(<style>{css}</style>, header, content);
   // classList rather than a class binding, since dragging adds a class too.
   watch(() => void panel.classList.toggle('wt-collapsed', collapsed.value));
 
   function openTool(tool: ScreenTool) {
     current.peek()?.controller.abort();
     const controller = new AbortController();
-    const body = h('div');
-    const subtitle = h('span', { class: 'wt-sub wt-ellipsis' });
+    const body = <div />;
+    const subtitle = <span class="wt-sub wt-ellipsis" />;
     batch(() => {
       current.value = { tool, body, controller, subtitle };
       collapsed.value = false;
@@ -329,7 +330,7 @@ function build(tools: Tool[], opts: PanelOptions): PanelHandle {
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
-        body.replaceChildren(h('div', { class: 'wt-body' }, banner('err', err instanceof Error ? err.message : String(err))));
+        body.replaceChildren(<div class="wt-body">{banner('err', err instanceof Error ? err.message : String(err))}</div>);
       });
   }
 
