@@ -53,6 +53,7 @@ const html = `<!doctype html>
   a.bm { display: inline-block; padding: 8px 14px; margin: 4px 0; background: #2d2d3a; color: #fff; border: 1px solid #555; border-radius: 6px; text-decoration: none; }
   code { background: #2d2d3a; padding: 1px 4px; border-radius: 3px; }
   .muted { color: #999; }
+  .muted a { color: #bbb; }
 </style>
 </head>
 <body>
@@ -62,6 +63,9 @@ const html = `<!doctype html>
 <p class="muted">This one always loads the latest version from <code>${scriptUrl}</code>.</p>
 <p>If the room page blocks the remote script, use the self-contained version instead (it needs re-installing after each update):</p>
 <p><a class="bm" href="${escapeAttr(inlineUrl)}">WavezFM Tools (inline)</a></p>
+<footer class="muted" style="margin-top: 40px; font-size: 13px">
+<p>Notification sound: Sound Effect by <a href="https://pixabay.com/users/universfield-28281460/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=363746">Official Profile</a> from <a href="https://pixabay.com//?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=363746">Pixabay</a>.</p>
+</footer>
 </body>
 </html>
 `;

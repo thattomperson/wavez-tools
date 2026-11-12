@@ -2,6 +2,8 @@
 // so it works with the inline bookmark too, and it's played through Web Audio
 // from memory, so the room page's content security policy can't block it
 // the way it might block an <audio> element loading a URL.
+// Sound: Sound Effect by Universfield (https://pixabay.com/users/universfield-28281460/) from
+// Pixabay, credited in the README and on the install page.
 import notificationMp3 from '../assets/notification.mp3';
 
 let ctx: AudioContext | null = null;
