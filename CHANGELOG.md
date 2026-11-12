@@ -8,6 +8,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 ### Added
 
 - Credit for the notification sound (Universfield on Pixabay) on the install page and in the README.
+  ([#17](https://github.com/thattomperson/wavez-tools/pull/17))
 - **Notifications** can play a sound when a message is for you, set under the cog, with a volume
   slider, a play button to hear it at that volume, and an option to only play it while you're in
   another tab or app.
