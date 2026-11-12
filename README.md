@@ -140,3 +140,9 @@ it. See `src/tools/room-info.tsx`.
 Then add it to the `tools` array in `src/tools/index.ts`.
 
 The bridge is documented in the [Room Extension API](https://github.com/WavezFM/WavezFM-Extension-API).
+
+## Credits
+
+The notification sound is a [sound effect by Universfield](https://pixabay.com/users/universfield-28281460/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=363746)
+from [Pixabay](https://pixabay.com/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=363746)
+(`src/assets/notification.mp3`, re-encoded smaller).
