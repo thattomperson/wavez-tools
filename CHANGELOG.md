@@ -56,6 +56,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 - **Auto-join** could rejoin the queue in the moment after a mod removed you, before it switched
   itself off. It now checks for the removal before trying to join.
+  ([#19](https://github.com/thattomperson/wavez-tools/pull/19))
 - Desktop notifications read more shapes of chat message, in case the room sends the sender or
   text under different names.
 
