@@ -7,6 +7,11 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Auto-join** switches itself off if someone else (like a mod) removes you from the queue, so it
+  doesn't rejoin straight away. The line under the name says why. Leaving yourself, with the
+  site's Leave button or Auto-leave, still leaves it on.
+  ([#18](https://github.com/thattomperson/wavez-tools/pull/18))
+
 - Credit for the notification sound (Universfield on Pixabay) on the install page and in the README.
   ([#17](https://github.com/thattomperson/wavez-tools/pull/17))
 - **Notifications** can play a sound when a message is for you, set under the cog, with a volume

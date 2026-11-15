@@ -8,6 +8,7 @@ import { computed, effect, signal, untracked } from '@preact/signals-core';
 import { h } from '../ui/dom';
 import { icon } from '../ui/icons';
 import { requireBridge, type ActionResult } from '../wavez/bridge';
+import { leaveQueue } from '../wavez/leave-intent';
 import { othersWaiting } from './auto-queue';
 import type { ToggleContext, ToggleTool } from './types';
 
@@ -110,7 +111,7 @@ function run(ctx: ToggleContext): () => void {
       return false;
     }
     lastTry = Date.now();
-    const result: ActionResult = bridge.actions.leaveQueue();
+    const result: ActionResult = leaveQueue();
     // Look again after the cooldown in case nothing else changes meanwhile.
     retry = setTimeout(check, COOLDOWN_MS);
     if (!result.ok) console.warn(`WavezFM Tools: Auto-leave failed (${result.code})`);
