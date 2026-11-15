@@ -53,35 +53,26 @@ function watchQueue(
   };
 }
 
-// Calls `onRemoved` when you drop out of the queue while waiting for your turn
-// without having asked to leave. Leaving after your own song isn't counted,
-// since that's the room rotating rather than a removal.
-function watchRemoval(onRemoved: () => void): () => void {
-  const bridge = requireBridge();
+// Returns a check, given each new room state, that says whether you've been
+// taken out of the queue while waiting for your turn without asking to leave.
+// Once it says yes it keeps saying yes. Leaving after your own song isn't
+// counted, since that's the room rotating rather than a removal.
+function removalTracker(): (state: RoomState) => boolean {
   let wasWaiting = false;
   let roomId: string | null = null;
+  let removed = false;
 
-  const check = () => {
-    const state = bridge.room.getState();
-    if (!state?.currentUser) return;
+  return (state) => {
+    if (removed || !state.currentUser) return removed;
     const { queue } = state;
-    const waiting = queue.isJoined && !queue.isCurrentDj;
     const out = !queue.isJoined && !queue.isCurrentDj && state.playback?.djId !== state.currentUser.id;
-    const sameRoom = roomId === state.room.id;
-    if (wasWaiting && out && sameRoom && !leftOnPurpose()) {
-      onRemoved();
-      return;
+    if (wasWaiting && out && roomId === state.room.id && !leftOnPurpose()) {
+      removed = true;
+      return true;
     }
-    wasWaiting = waiting;
+    wasWaiting = queue.isJoined && !queue.isCurrentDj;
     roomId = state.room.id;
-  };
-
-  const stopIntent = watchLeaveIntent();
-  const stop = bridge.room.subscribe('queue_changed', check);
-  check();
-  return () => {
-    stop();
-    stopIntent();
+    return false;
   };
 }
 
@@ -94,13 +85,24 @@ export const autoJoin: ToggleTool = {
   onBlurb: 'On: joins the queue when nobody else is waiting',
   glyph: 'J',
   enable(ctx: ToggleContext) {
-    const stopRemoval = watchRemoval(() => {
-      console.info('WavezFM Tools: removed from the queue, switching Auto-join off');
-      ctx.turnOff('Off: you were removed from the queue');
-    });
+    const stopIntent = watchLeaveIntent();
+    const wasRemoved = removalTracker();
+    let switchingOff = false;
+    // The removal check runs first, on the same state, so a removal stops the
+    // join that the now-empty queue would otherwise trigger.
+    const removed = (state: RoomState) => {
+      if (!wasRemoved(state)) return false;
+      if (!switchingOff) {
+        switchingOff = true;
+        console.info('WavezFM Tools: removed from the queue, switching Auto-join off');
+        ctx.turnOff('Off: you were removed from the queue');
+      }
+      return true;
+    };
     const stopJoining = watchQueue(
       'Auto-join',
       (state) =>
+        !removed(state) &&
         !state.queue.isJoined &&
         !state.queue.isCurrentDj &&
         !state.queue.isLocked &&
@@ -110,7 +112,7 @@ export const autoJoin: ToggleTool = {
       () => requireBridge().actions.joinQueue(),
     );
     return () => {
-      stopRemoval();
+      stopIntent();
       stopJoining();
     };
   },
