@@ -18,6 +18,8 @@ interface SocketHook {
   waiters: Array<(socket: WebSocket) => void>;
   /** Returns true to keep an outgoing packet from being sent. */
   filter?: ((data: unknown) => boolean) | null;
+  /** Told about every outgoing protocol packet. */
+  outgoing?: Set<(packet: Packet) => void>;
 }
 
 declare global {
@@ -49,6 +51,10 @@ function getHook(): SocketHook {
       hook.waiters.splice(0).forEach((resolve) => resolve(this));
     }
     if (hook.filter?.(data)) return;
+    if (hook.outgoing?.size) {
+      const packet = parsePacket(data);
+      if (packet) hook.outgoing.forEach((listener) => listener(packet));
+    }
     return originalSend.call(this, data);
   };
   return hook;
@@ -81,6 +87,13 @@ export function getRoomSocket(timeoutMs = 30_000): Promise<WebSocket> {
     };
     hook.waiters.push(done);
   });
+}
+
+/** Call `listener` for every packet the page sends. Returns a function that stops it. */
+export function onOutgoing(listener: (packet: Packet) => void): () => void {
+  const hook = getHook();
+  (hook.outgoing ??= new Set()).add(listener);
+  return () => hook.outgoing?.delete(listener);
 }
 
 function parsePacket(data: unknown): Packet | null {

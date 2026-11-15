@@ -14,7 +14,9 @@ Tools in the panel:
 - **AutoWoot** (switch): woots every song
 - **Auto-move OP songs** (switch): whenever the next song is OP, moves it to the end of the playlist.
   Stops after 10 in a row until a song passes
-- **Auto-join when queue is empty** (switch): joins the DJ queue when nobody else is waiting
+- **Auto-join when queue is empty** (switch): joins the DJ queue when nobody else is waiting.
+  If you're removed from the queue by someone else (say a mod), it switches itself off so it
+  doesn't put you straight back; leaving yourself, by hand or with Auto-leave, doesn't count
 - **Auto-leave** (switch): leaves the DJ queue when one of its rules hits, but never while your
   song is playing. The cog next to the switch opens the rules: when N other people are waiting
   (on by default with 1, so with Auto-join you fill gaps without holding anyone up), after your next
