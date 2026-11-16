@@ -72,6 +72,12 @@ export interface RoomState {
   };
 }
 
+/** Users waiting in the queue, not counting you or whoever is DJing now. */
+export function othersWaiting(state: RoomState): number {
+  const { queue, currentUser } = state;
+  return queue.entries.filter((e) => e.userId !== currentUser?.id && e.userId !== queue.currentDjId).length;
+}
+
 /** A room chat message, as sent with `chat_message` (the fields this script reads). */
 export interface ChatMessage {
   id: string;

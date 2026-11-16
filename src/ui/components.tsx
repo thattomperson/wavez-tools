@@ -1,5 +1,5 @@
 // Building blocks that tool screens share.
-import type { ReadonlySignal } from '@preact/signals-core';
+import { computed, type ReadonlySignal } from '@preact/signals-core';
 import type { OpcheckResult } from '../wavez/opcheck';
 import { h, type Child } from './dom';
 import { icon } from './icons';
@@ -71,4 +71,31 @@ export function keyValues(rows: Array<[string, Child] | false | null | undefined
 
 export function message(text: string, tone: 'muted' | 'warn' | 'error' = 'muted'): HTMLDivElement {
   return (<div class={`wt-${tone}`}>{text}</div>) as HTMLDivElement;
+}
+
+/** A -/+ stepper around a number signal, clamped to min..max. */
+export function Stepper(props: {
+  value: ReadonlySignal<number>;
+  min: number;
+  max: number;
+  step?: number;
+  /** Plural noun for the buttons' labels, e.g. "people" makes "Fewer people". */
+  unit: string;
+  /** The number as shown between the buttons. */
+  short?: (n: number) => string;
+  onchange: (n: number) => void;
+}): HTMLElement {
+  const { value, min, max, step = 1, unit, short = String, onchange } = props;
+  const bump = (dir: number) => onchange(Math.min(max, Math.max(min, value.peek() + dir * step)));
+  return (
+    <span class="wt-stepper">
+      <button type="button" aria-label={`Fewer ${unit}`} disabled={computed(() => value.value <= min)} onclick={() => bump(-1)}>
+        {icon('minus', 12)}
+      </button>
+      <output aria-live="polite">{computed(() => short(value.value))}</output>
+      <button type="button" aria-label={`More ${unit}`} disabled={computed(() => value.value >= max)} onclick={() => bump(1)}>
+        {icon('plus', 12)}
+      </button>
+    </span>
+  );
 }

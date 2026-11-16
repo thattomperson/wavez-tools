@@ -7,6 +7,10 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Auto-join** has a cog: join when fewer than N people are waiting (1 by default, the old
+  "only when nobody else is waiting"). It keeps under Auto-leave's waiting rule so they don't
+  fight, and the line under the name says what it's waiting for. The switch is now just called
+  **Auto-join**. ([#20](https://github.com/thattomperson/wavez-tools/pull/20))
 - **Auto-join** switches itself off if someone else (like a mod) removes you from the queue, so it
   doesn't rejoin straight away. The line under the name says why. Leaving yourself, with the
   site's Leave button or Auto-leave, still leaves it on.
