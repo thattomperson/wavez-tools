@@ -6,10 +6,9 @@
 // It never leaves while your own song is playing.
 import { computed, effect, signal, untracked } from '@preact/signals-core';
 import { h } from '../ui/dom';
-import { icon } from '../ui/icons';
-import { requireBridge, type ActionResult } from '../wavez/bridge';
+import { Stepper } from '../ui/components';
+import { othersWaiting, requireBridge, type ActionResult } from '../wavez/bridge';
 import { leaveQueue } from '../wavez/leave-intent';
-import { othersWaiting } from './auto-queue';
 import type { ToggleContext, ToggleTool } from './types';
 
 const STORAGE_KEY = 'wavez-tools:auto-leave';
@@ -50,6 +49,12 @@ const DEFAULTS: LeaveSettings = {
 
 // The running switch and the options under the cog both follow this.
 const settings = signal(loadSettings());
+
+/**
+ * While Auto-leave is on with its waiting rule, how many waiting people make it
+ * leave; otherwise null. Auto-join keeps under this so the two don't fight.
+ */
+export const leaveAtWaiting = signal<number | null>(null);
 
 function setSettings(next: LeaveSettings) {
   settings.value = next;
@@ -192,7 +197,8 @@ function run(ctx: ToggleContext): () => void {
   ];
   // Checks now, and again whenever the rules change.
   const stopWatching = effect(() => {
-    void settings.value;
+    const s = settings.value;
+    leaveAtWaiting.value = s.waiting.on ? s.waiting.n : null;
     untracked(check);
   });
   const tick = setInterval(check, TICK_MS);
@@ -201,6 +207,7 @@ function run(ctx: ToggleContext): () => void {
     clearTimeout(retry);
     clearInterval(tick);
     stopWatching();
+    leaveAtWaiting.value = null;
     stops.forEach((stop) => stop());
   };
 }
@@ -224,7 +231,7 @@ function RuleRow(props: {
   const { min, max, step } = LIMITS[key];
   const id = `wt-leave-${key}`;
   const rule = computed(() => settings.value[key]);
-  const bump = (dir: number) => setRule(key, { on: true, n: Math.min(max, Math.max(min, rule.peek().n + dir * step)) });
+  const n = computed(() => rule.value.n);
 
   return (
     <div class={computed(() => (rule.value.on ? 'wt-rule' : 'wt-rule wt-rule-off'))}>
@@ -238,15 +245,7 @@ function RuleRow(props: {
         <span>{computed(() => text(rule.value.n))}</span>
         <span class="wt-hint">{hint}</span>
       </label>
-      <span class="wt-stepper">
-        <button type="button" aria-label={`Fewer ${unit}`} disabled={computed(() => rule.value.n <= min)} onclick={() => bump(-1)}>
-          {icon('minus', 12)}
-        </button>
-        <output aria-live="polite">{computed(() => short(rule.value.n))}</output>
-        <button type="button" aria-label={`More ${unit}`} disabled={computed(() => rule.value.n >= max)} onclick={() => bump(1)}>
-          {icon('plus', 12)}
-        </button>
-      </span>
+      <Stepper value={n} min={min} max={max} step={step} unit={unit} short={short} onchange={(n) => setRule(key, { on: true, n })} />
     </div>
   );
 }
