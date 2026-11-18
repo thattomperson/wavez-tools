@@ -6,6 +6,7 @@
 import { computed, signal } from '@preact/signals-core';
 import { h, scoped, watch } from '../ui/dom';
 import { icon } from '../ui/icons';
+import { callSettings, setCallVolume, VOLUME_MAX, VOLUME_STEP } from './audio';
 import type { CallMember } from './client';
 import type { CallSession, Person } from './session';
 import { CALL_ID, callCss } from './styles';
@@ -66,7 +67,10 @@ function placement(): string {
   const left = Math.max(GAP, Math.round(r.left + GAP));
   // Keep it on screen if the stage runs past the bottom of the window.
   const bottom = Math.max(GAP, Math.round(window.innerHeight - r.bottom + GAP));
-  return `left:${left}px;bottom:${bottom}px;align-items:flex-start`;
+  // A tall card (settings open) scrolls rather than poking out of the top of the stage.
+  const top = Math.max(GAP, Math.round(r.top + GAP));
+  const max = Math.max(240, window.innerHeight - bottom - top);
+  return `left:${left}px;bottom:${bottom}px;align-items:flex-start;--wtc-max:${max}px`;
 }
 
 /** Shows the popup for a call session. Returns a function that removes it. */
@@ -200,6 +204,44 @@ export function mountCallPopup(call: CallSession): () => void {
       );
     };
 
+    // A slider for how loud you are (mic) or everyone else is (speaker), 0-200%.
+    const volumeRow = (key: 'mic' | 'speaker', label: string) => {
+      const id = `wtc-vol-${key}`;
+      return (
+        <div class="wtc-vol">
+          <label for={id}>{label}</label>
+          <div class="wtc-vol-row">
+            {icon(key === 'mic' ? 'mic' : 'volume')}
+            <input
+              id={id}
+              type="range"
+              min="0"
+              max={String(VOLUME_MAX)}
+              step={String(VOLUME_STEP)}
+              value={computed(() => String(callSettings.value[key]))}
+              oninput={(e: Event) => setCallVolume(key, Number((e.target as HTMLInputElement).value))}
+            />
+            <output for={id}>{computed(() => `${callSettings.value[key]}%`)}</output>
+          </div>
+        </div>
+      );
+    };
+
+    // How loud you are right now, after the mic volume. Animates only while settings are open.
+    const micMeter = () => {
+      const fill = <div />;
+      let frame = requestAnimationFrame(function draw() {
+        fill.style.width = `${Math.round(call.micLevel() * 100)}%`;
+        frame = requestAnimationFrame(draw);
+      });
+      watch(() => () => cancelAnimationFrame(frame));
+      return (
+        <div class="wtc-meter" role="img" aria-label="Your microphone level">
+          {fill}
+        </div>
+      );
+    };
+
     const callCard = () => (
       <div class="wtc-card">
         <div class="wtc-head">
@@ -259,6 +301,9 @@ export function mountCallPopup(call: CallSession): () => void {
           settingsOpen.value ? (
             <div class="wtc-settings">
               {deviceSelect('audioinput', 'Microphone')}
+              {volumeRow('mic', 'Microphone volume')}
+              {micMeter()}
+              {volumeRow('speaker', 'Speaker volume')}
               {deviceSelect('videoinput', 'Camera')}
             </div>
           ) : null

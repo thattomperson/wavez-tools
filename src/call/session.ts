@@ -1,8 +1,9 @@
 // One room's voice & video call: joining, leaving, mic/camera/screen, and
 // the list of people the popup draws. Everything the popup shows is a signal
 // here; the LiveKit Room itself stays private.
-import { batch, signal } from '@preact/signals-core';
-import type { LocalParticipant, Participant, RemoteTrack, Room } from 'livekit-client';
+import { batch, effect, signal } from '@preact/signals-core';
+import type { LocalAudioTrack, LocalParticipant, Participant, RemoteAudioTrack, RemoteTrack, Room } from 'livekit-client';
+import { callSettings, createMicProcessor, type MicProcessor } from './audio';
 import { callConfigured, fetchMembers, fetchToken, type CallMember } from './client';
 import { loadLiveKit, type LiveKit } from './load';
 
@@ -50,6 +51,8 @@ export function createCallSession(roomId: string, me: { id: string; name: string
 
   let disposed = false;
   let lk: LiveKit | null = null;
+  // Runs your mic through the volume slider; null until it's on the mic track.
+  let micProc: MicProcessor | null = null;
   let room: Room | null = null;
   // One video element per person, reused across redraws so playback doesn't restart.
   const videos = new Map<string, { el: HTMLVideoElement; track: RemoteTrack | null | object }>();
@@ -125,7 +128,29 @@ export function createCallSession(roomId: string, me: { id: string; name: string
   void loadMembers();
   const poll = setInterval(loadMembers, MEMBERS_POLL_MS);
 
+  // Puts the mic volume processor on your microphone track, once it exists.
+  async function applyMicVolume(r: Room) {
+    if (micProc || !lk) return;
+    const track = r.localParticipant.getTrackPublication(lk.Track.Source.Microphone)?.track as LocalAudioTrack | undefined;
+    if (!track) return;
+    const proc = createMicProcessor(callSettings.peek().mic);
+    try {
+      await track.setProcessor(proc);
+      micProc = proc;
+    } catch (err) {
+      log('mic volume unavailable:', err);
+    }
+  }
+
+  // Slider changes apply straight away.
+  const stopVolumes = effect(() => {
+    const { speaker, mic } = callSettings.value;
+    micProc?.setGain(mic);
+    for (const p of room?.remoteParticipants.values() ?? []) p.setVolume(speaker / 100);
+  });
+
   function reset() {
+    micProc = null;
     for (const v of videos.values()) (v.track as RemoteTrack | null)?.detach(v.el);
     videos.clear();
     audioBox.replaceChildren();
@@ -149,7 +174,8 @@ export function createCallSession(roomId: string, me: { id: string; name: string
       const [mod, { url, token }] = await Promise.all([loadLiveKit(), fetchToken(roomId, me)]);
       lk = mod;
       const { Room, RoomEvent } = mod;
-      joining = new Room({ adaptiveStream: true, dynacast: true });
+      // webAudioMix plays the call through Web Audio, which the volume sliders need.
+      joining = new Room({ adaptiveStream: true, dynacast: true, webAudioMix: true });
       const r = joining;
       for (const e of [
         RoomEvent.ParticipantConnected,
@@ -165,7 +191,10 @@ export function createCallSession(roomId: string, me: { id: string; name: string
         r.on(e, () => room === r && refresh());
       }
       r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
-        if (track.kind === 'audio') audioBox.appendChild(track.attach());
+        if (track.kind === 'audio') {
+          audioBox.appendChild(track.attach());
+          (track as RemoteAudioTrack).setVolume(callSettings.peek().speaker / 100);
+        }
         if (room === r) refresh();
       });
       r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
@@ -194,6 +223,7 @@ export function createCallSession(roomId: string, me: { id: string; name: string
       audioBlocked.value = !r.canPlaybackAudio;
       try {
         await r.localParticipant.setMicrophoneEnabled(true);
+        await applyMicVolume(r);
       } catch (err) {
         error.value = `Couldn’t use your microphone: ${message(err)}`;
       }
@@ -241,7 +271,13 @@ export function createCallSession(roomId: string, me: { id: string; name: string
     canJoin,
     join,
     leave: () => void room?.disconnect(),
-    toggleMic: () => change('microphone', (p) => p.setMicrophoneEnabled(!p.isMicrophoneEnabled)),
+    toggleMic: () =>
+      change('microphone', async (p) => {
+        await p.setMicrophoneEnabled(!p.isMicrophoneEnabled);
+        if (room) await applyMicVolume(room);
+      }),
+    /** Your loudness after the mic volume, 0-1, for the meter. */
+    micLevel: () => (mic.peek() ? (micProc?.level() ?? 0) : 0),
     toggleCam: () => change('camera', (p) => p.setCameraEnabled(!p.isCameraEnabled)),
     toggleScreen: () => change('screen', (p) => p.setScreenShareEnabled(!p.isScreenShareEnabled)),
     startAudio: async () => {
@@ -264,6 +300,7 @@ export function createCallSession(roomId: string, me: { id: string; name: string
     },
     dispose() {
       disposed = true;
+      stopVolumes();
       clearInterval(poll);
       const r = room;
       void r?.disconnect();

@@ -9,7 +9,7 @@ ${C}{position:fixed;z-index:2147483646;display:flex;flex-direction:column;align-
 ${C} *{box-sizing:border-box}
 ${C} button,${C} select{font:inherit;color:inherit;margin:0}
 ${C} :focus-visible{outline:2px solid #8fb0ff;outline-offset:2px}
-${C} .wtc-card{width:320px;max-width:calc(100vw - 32px);overflow:hidden;background:#171822;border:1px solid #2c2f40;
+${C} .wtc-card{width:320px;max-width:calc(100vw - 32px);max-height:var(--wtc-max,calc(100vh - 32px));overflow:hidden auto;background:#171822;border:1px solid #2c2f40;
   border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.55)}
 ${C} .wtc-head{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border-bottom:1px solid #2c2f40}
 ${C} .wtc-title{flex:1;min-width:0;font-size:13px;font-weight:700}
@@ -60,6 +60,14 @@ ${C} .wtc-leave:hover{background:#5a2226}
 ${C} .wtc-settings{display:flex;flex-direction:column;gap:8px;padding:10px 14px 12px;border-top:1px solid #2c2f40}
 ${C} .wtc-settings label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#9a9cae}
 ${C} .wtc-settings select{min-height:36px;padding:0 8px;border:1px solid #3a3e55;border-radius:8px;background:#11121a;color:#ecedf3}
+${C} .wtc-vol{display:flex;flex-direction:column;gap:4px}
+${C} .wtc-vol label{font-size:11px;color:#9a9cae}
+${C} .wtc-vol-row{display:flex;align-items:center;gap:10px;min-height:36px;color:#9a9cae}
+${C} .wtc-vol-row svg{flex-shrink:0}
+${C} .wtc-vol-row input{flex:1;min-width:0;height:24px;margin:0;accent-color:#8fb0ff;cursor:pointer}
+${C} .wtc-vol-row output{min-width:40px;text-align:right;color:#ecedf3;font-weight:600;font-variant-numeric:tabular-nums}
+${C} .wtc-meter{height:4px;margin:-4px 0 4px 26px;border-radius:2px;background:#262a3d;overflow:hidden}
+${C} .wtc-meter div{width:0;height:4px;background:#57c98d;transition:width .08s}
 ${C} .wtc-pill{display:flex;align-items:center;gap:8px;padding:6px;background:#171822;border:1px solid #2c2f40;
   border-radius:999px;box-shadow:0 12px 32px rgba(0,0,0,.55)}
 ${C} .wtc-pill .wtc-faces{padding-left:4px}
