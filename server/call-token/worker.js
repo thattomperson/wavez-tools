@@ -5,7 +5,7 @@
 //
 // Settings (wrangler.toml [vars] and `wrangler secret put`):
 //   LIVEKIT_URL         wss://<project>.livekit.cloud
-//   LIVEKIT_API_KEY     LiveKit API key
+//   LIVEKIT_API_KEY     LiveKit API key (a secret)
 //   LIVEKIT_API_SECRET  LiveKit API secret (a secret, not a var)
 //   ALLOWED_ORIGINS     comma-separated origins allowed to call this, e.g. https://wavez.fm
 

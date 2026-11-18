@@ -12,7 +12,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
   you join, a tile per person with a ring on whoever's talking, and buttons for mic, camera,
   screen share, picking devices and leaving; it shrinks to a small pill. Runs on LiveKit, which
   only downloads when you join, with a small Cloudflare Worker (`server/call-token`) handing out
-  join tokens. Needs that Worker deployed and its address in `src/config.ts` before it works.
+  join tokens.
   ([#21](https://github.com/thattomperson/wavez-tools/pull/21))
 
 - **Auto-join** has a cog: join when fewer than N people are waiting (1 by default, the old

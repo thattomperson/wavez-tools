@@ -10,5 +10,5 @@ export const OPCHECK_BOT = {
 // Worker in server/call-token that signs LiveKit join tokens; see its README.
 // Empty means calls aren't set up, and the popup says so.
 export const CALL = {
-  tokenUrl: '',
+  tokenUrl: 'https://wavez-tools-call-token.ttp.workers.dev',
 };

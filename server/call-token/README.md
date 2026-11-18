@@ -15,11 +15,12 @@ It has two endpoints:
 
 1. Make a project on [LiveKit Cloud](https://cloud.livekit.io) (the free tier is fine) and create
    an API key. Note the project URL (`wss://...livekit.cloud`), the key and the secret.
-2. In this folder, put the URL and key in `wrangler.toml`.
+2. In this folder, put the project URL in `wrangler.toml`.
 3. Run:
 
    ```sh
    npx wrangler login
+   npx wrangler secret put LIVEKIT_API_KEY
    npx wrangler secret put LIVEKIT_API_SECRET
    npx wrangler deploy
    ```
