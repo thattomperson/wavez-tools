@@ -5,6 +5,11 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ## [Unreleased]
 
+### Changed
+
+- The call token Worker keeps its logs (one per request) in the Cloudflare dashboard, to help
+  track down failed joins.
+
 ### Added
 
 - **Voice & video** switch: a call popup at the bottom right of the room, next to the chat, for a
