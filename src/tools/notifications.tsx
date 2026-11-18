@@ -51,6 +51,8 @@ const STORAGE_KEY = 'wavez-tools:notifications';
 interface NotifySettings {
   /** @username and @"Display Name". */
   name: boolean;
+  /** Replies to one of your messages. */
+  reply: boolean;
   /** @staff, while your room role is bouncer or above. */
   staff: boolean;
   /** @everyone, @here and @room. */
@@ -71,6 +73,7 @@ interface NotifySettings {
 
 const DEFAULTS: NotifySettings = {
   name: true,
+  reply: true,
   staff: true,
   room: true,
   bot: true,
@@ -100,6 +103,7 @@ function loadSettings(): NotifySettings {
   const words = Array.isArray(saved.words) ? parseWords(saved.words.filter((w) => typeof w === 'string').join(',')) : [];
   return {
     name: flag('name'),
+    reply: flag('reply'),
     staff: flag('staff'),
     room: flag('room'),
     bot: flag('bot'),
@@ -209,16 +213,27 @@ export const notifications: ToggleTool = {
       // The same message often comes through the bridge and the socket; keep the first verdict.
       if (verdict !== DUPLICATE) diag.lastVerdict = verdict;
     };
+    // Your own recent message ids, so a reply that only names the message it
+    // answers (not its author) can still be matched to you.
+    const mine = new Set<string>();
+
     const checkChat = (message: ChatMessage): string => {
       const state = bridge.room.getState();
       const me = state?.currentUser;
       log('chat message', message, 'me:', me);
       if (!state || !me) return 'skipped: not signed in to the room';
-      if (message.userId === me.id) return 'skipped: your own message';
+      if (message.userId === me.id) {
+        mine.add(message.id);
+        if (mine.size > SEEN_MAX) mine.delete(mine.values().next().value as string);
+        return 'skipped: your own message';
+      }
       if (!firstSighting(message.id)) return DUPLICATE;
       const from = message.displayUsername || message.username || 'Someone';
       const s = settings.peek();
-      const reason = matchReason(message.content ?? '', state, s);
+      const target = replyTarget(message);
+      const repliedToMe = !!target && isMine(target, me, mine);
+      log('reply to:', target ?? 'nothing', repliedToMe ? '(you)' : '');
+      const reason = s.reply && repliedToMe ? 'replied to you' : matchReason(message.content ?? '', state, s);
       const mentioned = reason !== null;
       log('matches:', reason ?? 'nothing', { settings: s });
 
@@ -241,7 +256,11 @@ export const notifications: ToggleTool = {
         return notify(message.id, from, lines, buttons);
       }
       log('not a bot message');
-      if (reason) return notify(message.id, `${from} ${reason}`, [message.content], []);
+      if (reason) {
+        // For a reply, show the message it answers under the new one.
+        const quote = reason === 'replied to you' && target?.content ? [`↪ ${target.content}`] : [];
+        return notify(message.id, `${from} ${reason}`, [message.content, ...quote], []);
+      }
       return 'skipped: nothing you asked to be notified about';
     };
 
@@ -368,6 +387,42 @@ function isBot(message: ChatMessage): boolean {
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+interface ReplyTarget {
+  id?: string;
+  userId?: string;
+  username?: string;
+  content?: string;
+}
+
+/**
+ * The message this one replies to, if any. The chat_message payload isn't
+ * documented, so this accepts a `replyTo` object (the shape the API uses for
+ * replies elsewhere) or a few likely flat fields.
+ */
+function replyTarget(message: ChatMessage): ReplyTarget | null {
+  const m = message as unknown as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+  const nested = [m.replyTo, m.reply_to, m.reply, m.parentMessage, m.quotedMessage].find(
+    (v): v is Record<string, unknown> => !!v && typeof v === 'object',
+  );
+  const user = (nested?.user ?? nested?.author) as Record<string, unknown> | undefined;
+  const target: ReplyTarget = {
+    id: str(nested?.id) ?? str(nested?.messageId) ?? str(m.replyToId) ?? str(m.replyToMessageId),
+    userId: str(nested?.userId) ?? str(user?.id) ?? str(m.replyToUserId),
+    username: str(nested?.displayUsername) ?? str(nested?.username) ?? str(user?.username) ?? str(m.replyToUsername),
+    content: str(nested?.content) ?? str(nested?.text),
+  };
+  return target.id || target.userId || target.username ? target : null;
+}
+
+/** True when a reply's target is one of your messages: by your id, a message id you sent, or your name. */
+function isMine(target: ReplyTarget, me: NonNullable<RoomState['currentUser']>, mine: Set<string>): boolean {
+  if (target.userId) return target.userId === me.id;
+  if (target.id && mine.has(target.id)) return true;
+  const name = target.username?.trim().toLowerCase();
+  return !!name && [me.username, me.displayUsername].some((n) => n?.trim().toLowerCase() === name);
 }
 
 // Room roles that @staff pings: bouncer and up.
@@ -514,6 +569,7 @@ function options(): HTMLElement {
       <div class="wt-divider" />
       <span class="wt-label">Notify me about</span>
       <Check flag="name" label="My name" hint={names} />
+      <Check flag="reply" label="Replies to my messages" hint="When someone replies to something you said" />
       <Check
         flag="staff"
         label="@staff"

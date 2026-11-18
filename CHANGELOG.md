@@ -19,6 +19,8 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Notifications** can tell you when someone replies to one of your messages, not just when they
+  @mention you. It's a new "Replies to my messages" option under the cog, on by default.
 - **Voice & video** switch: a call popup at the bottom right of the room, next to the chat, for a
   voice or video call with everyone in the room who has it on. Shows who's in the call before
   you join, a tile per person with a ring on whoever's talking, and buttons for mic, camera,
