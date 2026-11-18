@@ -50,7 +50,9 @@ has to be checked by hand by running the bookmarklet in a WavezFM room.
   bundle. Join tokens come from the Cloudflare Worker in `server/call-token` (address in
   `src/config.ts`), deployed separately from Pages.
 - Styles are scoped CSS in `src/ui/styles.ts`. Switch state is saved in localStorage under
-  `wavez-tools:toggles`, panel position under `wavez-tools:position`.
+  `wavez-tools:toggles`, panel position under `wavez-tools:position`
+  (the call popup's under `wavez-tools:call-position` and `wavez-tools:call-size`; `src/ui/drag.tsx`
+  moves both).
 
 ## Conventions
 
