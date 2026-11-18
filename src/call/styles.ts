@@ -4,7 +4,7 @@ export const CALL_ID = 'wavez-tools-call';
 const C = `#${CALL_ID}`;
 
 export const callCss = `
-${C}{position:fixed;bottom:16px;right:16px;z-index:2147483646;display:flex;flex-direction:column;align-items:flex-end;
+${C}{position:fixed;z-index:2147483646;display:flex;flex-direction:column;align-items:flex-end;
   color:#ecedf3;text-align:left;font:12px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
 ${C} *{box-sizing:border-box}
 ${C} button,${C} select{font:inherit;color:inherit;margin:0}

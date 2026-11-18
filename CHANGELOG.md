@@ -7,6 +7,9 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Changed
 
+- The **Voice & video** popup sits at the bottom left of the room's stage, so it no longer covers
+  the bar along the bottom of the page.
+
 - The call token Worker keeps its logs (one per request) in the Cloudflare dashboard, to help
   track down failed joins.
 
