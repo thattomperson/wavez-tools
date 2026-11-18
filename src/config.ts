@@ -5,3 +5,10 @@ export const OPCHECK_BOT = {
   /** Prefix the bot expects before a command, e.g. "tpq opcheck <link>". */
   commandPrefix: 'tpq',
 };
+
+// Voice & video calls (src/tools/voice-call.tsx). tokenUrl is the Cloudflare
+// Worker in server/call-token that signs LiveKit join tokens; see its README.
+// Empty means calls aren't set up, and the popup says so.
+export const CALL = {
+  tokenUrl: 'https://wavez-tools-call-token.ttp.workers.dev',
+};

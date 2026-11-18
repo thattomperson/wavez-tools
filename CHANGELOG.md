@@ -7,6 +7,14 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Voice & video** switch: a call popup at the bottom right of the room, next to the chat, for a
+  voice or video call with everyone in the room who has it on. Shows who's in the call before
+  you join, a tile per person with a ring on whoever's talking, and buttons for mic, camera,
+  screen share, picking devices and leaving; it shrinks to a small pill. Runs on LiveKit, which
+  only downloads when you join, with a small Cloudflare Worker (`server/call-token`) handing out
+  join tokens.
+  ([#21](https://github.com/thattomperson/wavez-tools/pull/21))
+
 - **Auto-join** has a cog: join when fewer than N people are waiting (1 by default, the old
   "only when nobody else is waiting"). It keeps under Auto-leave's waiting rule so they don't
   fight, and the line under the name says what it's waiting for. The switch is now just called
