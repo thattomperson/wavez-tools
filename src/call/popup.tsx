@@ -1,18 +1,18 @@
-// The call popup: docked at the bottom right of the room, just left of the
-// chat. Three looks: a join card (who's in the call, Join voice / With
+// The call popup: docked at the bottom left of the room's stage
+// ([data-wavezfm-stage-background]), clear of the chat and the bottom bar. Three looks: a join card (who's in the call, Join voice / With
 // camera), the call itself (a tile per person, mic/camera/screen/settings,
 // Leave), and a small pill when minimized. Mocked up as G1 on the design
 // canvas. Lives outside the panel, so it has its own scoped CSS.
 import { computed, signal } from '@preact/signals-core';
 import { h, scoped, watch } from '../ui/dom';
 import { icon } from '../ui/icons';
+import { callSettings, setCallVolume, VOLUME_MAX, VOLUME_STEP } from './audio';
 import type { CallMember } from './client';
 import type { CallSession, Person } from './session';
 import { CALL_ID, callCss } from './styles';
 
 const GAP = 16;
-// Narrower than this and the chat is probably a drawer over the page, not a column.
-const MIN_LEFT_OF_CHAT = 360;
+const STAGE = '[data-wavezfm-stage-background]';
 
 const FACE_COLORS = [
   ['#2a3350', '#c4d2ff'],
@@ -59,14 +59,18 @@ function duration(ms: number): string {
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
-/** Where the chat column starts, so the popup can sit just left of it. */
-function rightOffset(): number {
-  const chat = document.querySelector('[role="log"][aria-label="Room Chat"]');
-  if (!chat) return GAP;
-  // The log scrolls inside the chat column; its left edge is close enough.
-  const r = chat.getBoundingClientRect();
-  if (!r.width || r.left < MIN_LEFT_OF_CHAT) return GAP;
-  return Math.max(GAP, Math.round(window.innerWidth - r.left + GAP));
+/** Inline position: the stage's bottom-left corner, or the window's bottom right without a stage. */
+function placement(): string {
+  const stage = document.querySelector(STAGE);
+  const r = stage?.getBoundingClientRect();
+  if (!r || !r.width || !r.height) return `right:${GAP}px;bottom:${GAP}px`;
+  const left = Math.max(GAP, Math.round(r.left + GAP));
+  // Keep it on screen if the stage runs past the bottom of the window.
+  const bottom = Math.max(GAP, Math.round(window.innerHeight - r.bottom + GAP));
+  // A tall card (settings open) scrolls rather than poking out of the top of the stage.
+  const top = Math.max(GAP, Math.round(r.top + GAP));
+  const max = Math.max(240, window.innerHeight - bottom - top);
+  return `left:${left}px;bottom:${bottom}px;align-items:flex-start;--wtc-max:${max}px`;
 }
 
 /** Shows the popup for a call session. Returns a function that removes it. */
@@ -76,11 +80,11 @@ export function mountCallPopup(call: CallSession): () => void {
   const [root, dispose] = scoped(() => {
     const minimized = signal(false);
     const settingsOpen = signal(false);
-    const right = signal(rightOffset());
+    const position = signal(placement());
     const now = signal(Date.now());
 
-    // The chat can move or resize as the page lays out; follow it cheaply.
-    const place = () => (right.value = rightOffset());
+    // The stage can move or resize as the page lays out; follow it cheaply.
+    const place = () => (position.value = placement());
     window.addEventListener('resize', place);
     const tick = setInterval(() => {
       place();
@@ -200,6 +204,44 @@ export function mountCallPopup(call: CallSession): () => void {
       );
     };
 
+    // A slider for how loud you are (mic) or everyone else is (speaker), 0-200%.
+    const volumeRow = (key: 'mic' | 'speaker', label: string) => {
+      const id = `wtc-vol-${key}`;
+      return (
+        <div class="wtc-vol">
+          <label for={id}>{label}</label>
+          <div class="wtc-vol-row">
+            {icon(key === 'mic' ? 'mic' : 'volume')}
+            <input
+              id={id}
+              type="range"
+              min="0"
+              max={String(VOLUME_MAX)}
+              step={String(VOLUME_STEP)}
+              value={computed(() => String(callSettings.value[key]))}
+              oninput={(e: Event) => setCallVolume(key, Number((e.target as HTMLInputElement).value))}
+            />
+            <output for={id}>{computed(() => `${callSettings.value[key]}%`)}</output>
+          </div>
+        </div>
+      );
+    };
+
+    // How loud you are right now, after the mic volume. Animates only while settings are open.
+    const micMeter = () => {
+      const fill = <div />;
+      let frame = requestAnimationFrame(function draw() {
+        fill.style.width = `${Math.round(call.micLevel() * 100)}%`;
+        frame = requestAnimationFrame(draw);
+      });
+      watch(() => () => cancelAnimationFrame(frame));
+      return (
+        <div class="wtc-meter" role="img" aria-label="Your microphone level">
+          {fill}
+        </div>
+      );
+    };
+
     const callCard = () => (
       <div class="wtc-card">
         <div class="wtc-head">
@@ -259,6 +301,9 @@ export function mountCallPopup(call: CallSession): () => void {
           settingsOpen.value ? (
             <div class="wtc-settings">
               {deviceSelect('audioinput', 'Microphone')}
+              {volumeRow('mic', 'Microphone volume')}
+              {micMeter()}
+              {volumeRow('speaker', 'Speaker volume')}
               {deviceSelect('videoinput', 'Camera')}
             </div>
           ) : null
@@ -303,7 +348,7 @@ export function mountCallPopup(call: CallSession): () => void {
         id={CALL_ID}
         role="region"
         aria-label="Voice and video call"
-        style={computed(() => `right:${right.value}px`)}
+        style={position}
       >
         <style>{callCss}</style>
         {() => (minimized.value ? pill() : connected.value ? callCard() : joinCard())}

@@ -5,6 +5,18 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ## [Unreleased]
 
+### Changed
+
+- The **Voice & video** settings (the sliders button in a call) have a **Microphone volume**
+  slider with a live level meter, and a **Speaker volume** slider for everyone else, both 0-200%
+  and remembered between runs. A tall popup scrolls instead of running off the top of the stage.
+
+- The **Voice & video** popup sits at the bottom left of the room's stage, so it no longer covers
+  the bar along the bottom of the page.
+
+- The call token Worker keeps its logs (one per request) in the Cloudflare dashboard, to help
+  track down failed joins.
+
 ### Added
 
 - **Voice & video** switch: a call popup at the bottom right of the room, next to the chat, for a

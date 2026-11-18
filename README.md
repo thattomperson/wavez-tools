@@ -33,12 +33,13 @@ Tools in the panel:
   notifications are first switched on. Browsers don't allow buttons on notifications from a web
   page, so a bot message's buttons are listed in the notification instead; click it to get back to
   the room with a card that has the real buttons
-- **Voice & video** (switch): shows a call popup at the bottom right of the room, just left of the
-  chat. Everyone in the same room with the switch on shares one call. Before you join it shows
+- **Voice & video** (switch): shows a call popup at the bottom left of the room's stage, clear of
+  the chat and the bottom bar. Everyone in the same room with the switch on shares one call. Before you join it shows
   who's in the call; join with voice or with your camera on. In the call each person gets a tile
   (their camera or screen share, else their initial), with a ring on whoever's talking and a mark
   on anyone muted. Buttons mute your mic, turn your camera on or off, share your screen, pick your
-  microphone and camera, and leave. The arrow shrinks it to a small pill with a mute button. Calls
+  microphone and camera (with microphone and speaker volume sliders, and a level meter for
+  your mic), and leave. The arrow shrinks it to a small pill with a mute button. Calls
   run on [LiveKit](https://livekit.io) and need the token server in `server/call-token` deployed
   first (see its README). LiveKit's client (about 150 KB gzipped) only downloads when you join.
   Closing the panel hangs up
