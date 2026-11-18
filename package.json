@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@preact/signals-core": "1.14.5",
-    "@wavezfm/api": "0.7.31"
+    "@wavezfm/api": "0.7.31",
+    "livekit-client": "2.24.1"
   }
 }

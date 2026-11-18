@@ -33,6 +33,15 @@ Tools in the panel:
   notifications are first switched on. Browsers don't allow buttons on notifications from a web
   page, so a bot message's buttons are listed in the notification instead; click it to get back to
   the room with a card that has the real buttons
+- **Voice & video** (switch): shows a call popup at the bottom right of the room, just left of the
+  chat. Everyone in the same room with the switch on shares one call. Before you join it shows
+  who's in the call; join with voice or with your camera on. In the call each person gets a tile
+  (their camera or screen share, else their initial), with a ring on whoever's talking and a mark
+  on anyone muted. Buttons mute your mic, turn your camera on or off, share your screen, pick your
+  microphone and camera, and leave. The arrow shrinks it to a small pill with a mute button. Calls
+  run on [LiveKit](https://livekit.io) and need the token server in `server/call-token` deployed
+  first (see its README). LiveKit's client (about 150 KB gzipped) only downloads when you join.
+  Closing the panel hangs up
 
 Switches (and the settings under their cogs) are remembered between runs and stop when the panel is closed.
 
@@ -47,6 +56,7 @@ the room; the answer shows up as a small note above the chat box.
 - `/wt notify test`: says whether notifications are allowed, what the last chat message looked
   like and why it did or didn't notify, then sends a test notification and plays the sound after
   5 seconds
+- `/wt call on|off`: show or hide the call popup
 - `/wt status`: which switches are on
 - `/wt next`: your next song and its opcheck
 - `/wt help`: the list above
@@ -76,6 +86,7 @@ npm run build
 | File | What it is |
 | --- | --- |
 | `wavez-tools.min.js` | Minified script that the loader fetches |
+| `livekit.min.js` | The LiveKit client, loaded by the main script only when you join a call |
 | `loader.txt` | `javascript:` URL for the remote-loading bookmark |
 | `inline.txt` | `javascript:` URL with the whole script inlined |
 | `index.html` | Install page with drag-to-bookmarks links |
@@ -100,7 +111,9 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/wavez/api.ts` | Playlist calls through the official [`@wavezfm/api`](https://www.npmjs.com/package/@wavezfm/api) SDK (session cookies) |
 | `src/wavez/opcheck.ts` | Opcheck via the room bot, shared by the opcheck commands |
 | `src/wavez/socket.ts`, `bot.ts` | Private bot commands over the page's own room WebSocket |
-| `src/config.ts` | Opcheck bot user id and command prefix |
+| `src/config.ts` | Opcheck bot user id and command prefix, call token server address |
+| `src/call/` | Voice & video call: LiveKit session, popup, and loading LiveKit on demand |
+| `server/call-token/` | Cloudflare Worker that signs LiveKit join tokens for calls |
 | `src/wavez/tracks.ts` | Track links, names and "next track" logic |
 | `src/lib/` | Small shared helpers, including the notification sound player |
 | `src/assets/` | The notification sound, bundled into the script |

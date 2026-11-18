@@ -7,8 +7,8 @@ Guidance for Claude (and anyone else) working in this repo.
 WavezFM Tools is a bookmarklet that adds a small panel to WavezFM room pages. The panel header
 always shows the next song in your active playlist and whether the room bot says it's OP. Below it
 is a list of tools: screen tools (Queue check, Next song details, Room info, Playlist info) and
-on/off switches (AutoWoot, Auto-move OP songs, Auto-join, Auto-leave, Notifications). See `README.md` for the
-user-facing description, install steps and the full file layout.
+on/off switches (AutoWoot, Auto-move OP songs, Auto-join, Auto-leave, Notifications, Voice &
+video). See `README.md` for the user-facing description, install steps and the full file layout.
 
 The bookmark itself is a tiny loader that fetches `wavez-tools.min.js` from GitHub Pages, so
 merging to `main` ships to every user on their next click.
@@ -44,6 +44,11 @@ has to be checked by hand by running the bookmarklet in a WavezFM room.
 - `/wt` chat commands live in `src/chat/`. `intercept.ts` catches them on Enter in the chat box
   (and as a fallback on the outgoing socket packet), and wraps `window.open` to add the same
   listeners to the pop-out chat window. Each switch's `command` field is its chat name.
+- Voice & video calls live in `src/call/` and use LiveKit. The LiveKit client is built as its own
+  file (`dist/livekit.min.js`, entry `src/call/livekit-entry.ts`) and loaded on demand by
+  `src/call/load.ts`; only `import type` from `livekit-client` elsewhere, or it lands in the main
+  bundle. Join tokens come from the Cloudflare Worker in `server/call-token` (address in
+  `src/config.ts`), deployed separately from Pages.
 - Styles are scoped CSS in `src/ui/styles.ts`. Switch state is saved in localStorage under
   `wavez-tools:toggles`, panel position under `wavez-tools:position`.
 

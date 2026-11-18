@@ -1,0 +1,9 @@
+name = "wavez-tools-call-token"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Fill these in, then run `npx wrangler secret put LIVEKIT_API_SECRET`.
+LIVEKIT_URL = "wss://YOUR-PROJECT.livekit.cloud"
+LIVEKIT_API_KEY = "YOUR_API_KEY"
+ALLOWED_ORIGINS = "https://wavez.fm,https://www.wavez.fm"

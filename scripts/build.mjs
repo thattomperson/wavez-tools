@@ -15,6 +15,21 @@ const outDir = new URL('../dist/', import.meta.url);
 
 await mkdir(outDir, { recursive: true });
 
+// LiveKit is its own file next to the main script, loaded only when someone
+// joins a call (src/call/load.ts). The global name must match GLOBAL there.
+const livekitUrl = new URL('livekit.min.js', scriptUrl).href;
+const buildId = Date.now().toString(36);
+const livekit = await build({
+  entryPoints: [new URL('../src/call/livekit-entry.ts', import.meta.url).pathname],
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  globalName: '__wavezToolsLiveKit',
+  target: 'es2020',
+  write: false,
+  legalComments: 'eof',
+});
+
 const result = await build({
   entryPoints: [new URL('../src/main.ts', import.meta.url).pathname],
   bundle: true,
@@ -25,6 +40,7 @@ const result = await build({
   legalComments: 'none',
   // The notification sound is inlined as a base64 string (src/lib/sound.ts).
   loader: { '.mp3': 'base64' },
+  define: { __LIVEKIT_URL__: JSON.stringify(livekitUrl), __BUILD_ID__: JSON.stringify(buildId) },
 });
 const script = result.outputFiles[0].text.trim();
 
@@ -72,9 +88,12 @@ const html = `<!doctype html>
 
 await Promise.all([
   writeFile(new URL('wavez-tools.min.js', outDir), script + '\n'),
+  writeFile(new URL('livekit.min.js', outDir), livekit.outputFiles[0].text),
   writeFile(new URL('loader.txt', outDir), loaderUrl + '\n'),
   writeFile(new URL('inline.txt', outDir), inlineUrl + '\n'),
   writeFile(new URL('index.html', outDir), html),
 ]);
 
-console.log(`Built dist/ (script ${script.length} bytes, loader -> ${scriptUrl})`);
+console.log(
+  `Built dist/ (script ${script.length} bytes, livekit ${livekit.outputFiles[0].text.length} bytes, loader -> ${scriptUrl})`,
+);
