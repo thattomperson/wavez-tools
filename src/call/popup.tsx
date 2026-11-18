@@ -1,10 +1,12 @@
-// The call popup: docked at the bottom left of the room's stage
-// ([data-wavezfm-stage-background]), clear of the chat and the bottom bar. Three looks: a join card (who's in the call, Join voice / With
+// The call popup: at the bottom right of the room, just left of the chat,
+// until you drag it somewhere else by the grip in its header (remembered).
+// Its free side edge resizes it, which makes the video tiles bigger. Three looks: a join card (who's in the call, Join voice / With
 // camera), the call itself (a tile per person, mic/camera/screen/settings,
 // Leave), and a small pill when minimized. Mocked up as G1 on the design
 // canvas. Lives outside the panel, so it has its own scoped CSS.
 import { computed, signal } from '@preact/signals-core';
 import { h, scoped, watch } from '../ui/dom';
+import { makeDraggable } from '../ui/drag';
 import { icon } from '../ui/icons';
 import { callSettings, setCallVolume, VOLUME_MAX, VOLUME_STEP } from './audio';
 import type { CallMember } from './client';
@@ -12,7 +14,13 @@ import type { CallSession, Person } from './session';
 import { CALL_ID, callCss } from './styles';
 
 const GAP = 16;
-const STAGE = '[data-wavezfm-stage-background]';
+// Narrower than this and the chat is probably a drawer over the page, not a column.
+const MIN_LEFT_OF_CHAT = 360;
+const SIZE_KEY = 'wavez-tools:call-size';
+const DEFAULT_WIDTH = 320;
+const MIN_WIDTH = 280;
+const MAX_WIDTH = 960;
+const RESIZE_STEP = 20;
 
 const FACE_COLORS = [
   ['#2a3350', '#c4d2ff'],
@@ -59,18 +67,31 @@ function duration(ms: number): string {
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
-/** Inline position: the stage's bottom-left corner, or the window's bottom right without a stage. */
-function placement(): string {
-  const stage = document.querySelector(STAGE);
-  const r = stage?.getBoundingClientRect();
-  if (!r || !r.width || !r.height) return `right:${GAP}px;bottom:${GAP}px`;
-  const left = Math.max(GAP, Math.round(r.left + GAP));
-  // Keep it on screen if the stage runs past the bottom of the window.
-  const bottom = Math.max(GAP, Math.round(window.innerHeight - r.bottom + GAP));
-  // A tall card (settings open) scrolls rather than poking out of the top of the stage.
-  const top = Math.max(GAP, Math.round(r.top + GAP));
-  const max = Math.max(240, window.innerHeight - bottom - top);
-  return `left:${left}px;bottom:${bottom}px;align-items:flex-start;--wtc-max:${max}px`;
+/** Where the chat column starts, so the popup can sit just left of it. */
+function rightOffset(): number {
+  const chat = document.querySelector('[role="log"][aria-label="Room Chat"]');
+  if (!chat) return GAP;
+  // The log scrolls inside the chat column; its left edge is close enough.
+  const r = chat.getBoundingClientRect();
+  if (!r.width || r.left < MIN_LEFT_OF_CHAT) return GAP;
+  return Math.max(GAP, Math.round(window.innerWidth - r.left + GAP));
+}
+
+function loadWidth(): number {
+  try {
+    const w = JSON.parse(localStorage.getItem(SIZE_KEY) ?? 'null')?.width;
+    return typeof w === 'number' ? w : DEFAULT_WIDTH;
+  } catch {
+    return DEFAULT_WIDTH;
+  }
+}
+
+function saveWidth(width: number) {
+  try {
+    localStorage.setItem(SIZE_KEY, JSON.stringify({ width }));
+  } catch {
+    // Storage blocked: the size just won't be remembered.
+  }
 }
 
 /** Shows the popup for a call session. Returns a function that removes it. */
@@ -80,18 +101,102 @@ export function mountCallPopup(call: CallSession): () => void {
   const [root, dispose] = scoped(() => {
     const minimized = signal(false);
     const settingsOpen = signal(false);
-    const position = signal(placement());
     const now = signal(Date.now());
+    const root = (<div id={CALL_ID} role="region" aria-label="Voice and video call" />) as HTMLDivElement;
 
-    // The stage can move or resize as the page lays out; follow it cheaply.
-    const place = () => (position.value = placement());
-    window.addEventListener('resize', place);
+    // Until it's dragged, it sits just left of the chat. The chat can move or
+    // resize as the page lays out, so follow it cheaply.
+    const place = () => {
+      const s = root.style;
+      if (drag.placed()) {
+        root.dataset.anchor = 'left';
+        const bottom = parseFloat(s.bottom) || GAP;
+        s.setProperty('--wtc-max', `${Math.max(200, window.innerHeight - bottom - GAP)}px`);
+        return;
+      }
+      root.dataset.anchor = 'right';
+      s.left = s.top = '';
+      s.right = `${rightOffset()}px`;
+      s.bottom = `${GAP}px`;
+      s.setProperty('--wtc-max', `${window.innerHeight - 2 * GAP}px`);
+    };
+    const drag = makeDraggable(root, {
+      storageKey: 'wavez-tools:call-position',
+      label: 'Move the call (drag, or use the arrow keys; double-click to put it back)',
+      gripClass: 'wtc-grip',
+      draggingClass: 'wtc-dragging',
+      anchor: 'bottom',
+      minVisible: 60,
+      onMove: () => place(),
+      onReset: () => place(),
+    });
+    watch(() => () => drag.dispose());
+    place();
+
+    // Width, from the edge on the side away from where it's anchored. Video
+    // tiles keep their shape, so a wider popup has bigger videos.
+    let width = DEFAULT_WIDTH;
+    const setWidth = (w: number) => {
+      width = Math.round(Math.max(MIN_WIDTH, Math.min(w, MAX_WIDTH, window.innerWidth - 2 * GAP)));
+      root.style.setProperty('--wtc-w', `${width}px`);
+    };
+    setWidth(loadWidth());
+    // Growing towards the free side: leftwards while it's docked by the chat.
+    const growSign = () => (root.dataset.anchor === 'right' ? -1 : 1);
+    let resizeFrom: { x: number; width: number } | null = null;
+    const endResize = () => {
+      if (!resizeFrom) return;
+      resizeFrom = null;
+      root.classList.remove('wtc-resizing');
+      saveWidth(width);
+    };
+    const resizer = (
+      <button
+        type="button"
+        class="wtc-resize"
+        aria-label="Resize the call (drag, or use the arrow keys; double-click for the normal size)"
+        title="Drag to resize, double-click for the normal size"
+        onpointerdown={(event) => {
+          const e = event as PointerEvent;
+          if (e.button !== 0) return;
+          resizeFrom = { x: e.clientX, width };
+          resizer.setPointerCapture(e.pointerId);
+          root.classList.add('wtc-resizing');
+          e.preventDefault();
+        }}
+        onpointermove={(event) => {
+          const e = event as PointerEvent;
+          if (resizeFrom) setWidth(resizeFrom.width + growSign() * (e.clientX - resizeFrom.x));
+        }}
+        onpointerup={endResize}
+        onpointercancel={endResize}
+        ondblclick={() => {
+          setWidth(DEFAULT_WIDTH);
+          saveWidth(width);
+        }}
+        onkeydown={(event) => {
+          const e = event as KeyboardEvent;
+          const step = e.shiftKey ? RESIZE_STEP * 3 : RESIZE_STEP;
+          const by = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? step : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -step : 0;
+          if (!by) return;
+          e.preventDefault();
+          setWidth(width + by);
+          saveWidth(width);
+        }}
+      />
+    ) as HTMLButtonElement;
+
+    const onWindowResize = () => {
+      place();
+      setWidth(width);
+    };
+    window.addEventListener('resize', onWindowResize);
     const tick = setInterval(() => {
       place();
       if (call.phase.value === 'connected') now.value = Date.now();
     }, 1000);
     watch(() => () => {
-      window.removeEventListener('resize', place);
+      window.removeEventListener('resize', onWindowResize);
       clearInterval(tick);
     });
 
@@ -122,7 +227,9 @@ export function mountCallPopup(call: CallSession): () => void {
 
     const joinCard = () => (
       <div class="wtc-card">
+        {resizer}
         <div class="wtc-head">
+          {drag.grip}
           <span class="wtc-title">Voice &amp; video</span>
           <span class="wtc-sub">
             {() => (call.members.value.length ? `${call.members.value.length} in call` : '')}
@@ -244,7 +351,9 @@ export function mountCallPopup(call: CallSession): () => void {
 
     const callCard = () => (
       <div class="wtc-card">
+        {resizer}
         <div class="wtc-head">
+          {drag.grip}
           <span class="wtc-dot" aria-hidden="true" />
           <span class="wtc-title">In call</span>
           <span class="wtc-sub">{() => `${call.people.value.length} · ${elapsed.value}`}</span>
@@ -315,6 +424,7 @@ export function mountCallPopup(call: CallSession): () => void {
 
     const pill = () => (
       <div class="wtc-pill">
+        {drag.grip}
         {() =>
           connected.value
             ? faces(call.people.value.filter((p) => !p.isLocal))
@@ -343,17 +453,13 @@ export function mountCallPopup(call: CallSession): () => void {
       </div>
     );
 
-    return (
-      <div
-        id={CALL_ID}
-        role="region"
-        aria-label="Voice and video call"
-        style={position}
-      >
-        <style>{callCss}</style>
+    root.append(
+      <style>{callCss}</style>,
+      <div style="display:contents">
         {() => (minimized.value ? pill() : connected.value ? callCard() : joinCard())}
-      </div>
+      </div>,
     );
+    return root;
   });
 
   document.body.appendChild(root);
