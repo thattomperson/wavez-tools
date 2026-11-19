@@ -86,6 +86,8 @@ export interface ChatMessage {
   displayUsername?: string | null;
   content: string;
   role?: string;
+  /** The id of the message this one replies to. */
+  replyToId?: string | null;
   ephemeral?: boolean;
   targetUserIds?: string[];
   embed?: BotEmbed | null;
