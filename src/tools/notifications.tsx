@@ -20,7 +20,6 @@ import { playSound, primeSound } from '../lib/sound';
 import { closeNotice, showNotice, type NoticeButton } from '../ui/notice';
 import { isOwnCommand, sendBotCommand, type BotEmbed, type BotPrivateReply } from '../wavez/bot';
 import { requireBridge, type ChatMessage, type RoomState } from '../wavez/bridge';
-import { getChatHistory } from '../wavez/api';
 import { onIncoming, type Packet } from '../wavez/socket';
 import type { ToggleTool } from './types';
 
@@ -28,8 +27,6 @@ const BODY_MAX = 180;
 // Remember this many message ids so the same message from the bridge and the
 // socket only notifies once.
 const SEEN_MAX = 200;
-// Recent messages whose authors are remembered, for matching replies.
-const AUTHORS_MAX = 500;
 const NOTICE_ID = 'wavez-tools-notice';
 const PANEL_ID = 'wavez-tools-panel';
 
@@ -210,58 +207,24 @@ export const notifications: ToggleTool = {
       return done('notified');
     };
 
-    const onChat = async (message: ChatMessage) => {
-      const verdict = await checkChat(message);
+    const onChat = (message: ChatMessage) => {
+      const verdict = checkChat(message);
       log('→', verdict);
       // The same message often comes through the bridge and the socket; keep the first verdict.
       if (verdict !== DUPLICATE) diag.lastVerdict = verdict;
     };
 
-    // Who wrote each recent message, so a reply (which only carries replyToId)
-    // can be matched to its author and quote what it answers.
-    const authors = new Map<string, Authored>();
-    const remember = (m: { id?: unknown; userId?: unknown; content?: unknown }) => {
-      if (typeof m.id !== 'string' || typeof m.userId !== 'string') return;
-      authors.delete(m.id);
-      authors.set(m.id, { userId: m.userId, content: typeof m.content === 'string' ? m.content : undefined });
-      if (authors.size > AUTHORS_MAX) authors.delete(authors.keys().next().value as string);
-    };
-    // A reply to a message from before the switch was on: look it up in the
-    // room's chat history, at most once every few seconds.
-    let lastHistory = 0;
-    const lookUp = async (roomId: string, id: string): Promise<Authored | undefined> => {
-      if (authors.has(id) || Date.now() - lastHistory < 5000) return authors.get(id);
-      lastHistory = Date.now();
-      try {
-        const messages = await getChatHistory(roomId);
-        messages.forEach(remember);
-        log('chat history', messages.length, 'messages; found reply target:', authors.has(id));
-      } catch (err) {
-        log('chat history failed', err);
-      }
-      return authors.get(id);
-    };
-
-    const checkChat = async (message: ChatMessage): Promise<string> => {
+    const checkChat = (message: ChatMessage): string => {
       const state = bridge.room.getState();
       const me = state?.currentUser;
       log('chat message', message, 'me:', me);
-      remember(message);
       if (!state || !me) return 'skipped: not signed in to the room';
       if (message.userId === me.id) return 'skipped: your own message';
       if (!firstSighting(message.id)) return DUPLICATE;
       const from = message.displayUsername || message.username || 'Someone';
       const s = settings.peek();
-      const target = replyTarget(message);
-      // Look the target up when we don't know who wrote it, or when it's yours
-      // and we still need its text for the quote.
-      const toMe = target?.userId === me.id;
-      if (s.reply && target?.id && (!target.userId || (toMe && !target.content))) {
-        const found = await lookUp(state.room.id, target.id);
-        if (found) Object.assign(target, { userId: target.userId ?? found.userId, content: target.content ?? found.content });
-      }
-      const repliedToMe = !!target && isMine(target, me);
-      log('reply to:', target ?? 'nothing', repliedToMe ? '(you)' : '');
+      const repliedToMe = !!message.replyToUserId && message.replyToUserId === me.id;
+      log('reply to:', message.replyToUserId ?? 'nothing', repliedToMe ? '(you)' : '');
       const reason = s.reply && repliedToMe ? 'replied to you' : matchReason(message.content ?? '', state, s);
       const mentioned = reason !== null;
       log('matches:', reason ?? 'nothing', { settings: s });
@@ -286,9 +249,7 @@ export const notifications: ToggleTool = {
       }
       log('not a bot message');
       if (reason) {
-        // For a reply, show the message it answers under the new one.
-        const quote = reason === 'replied to you' && target?.content ? [`↪ ${target.content}`] : [];
-        return notify(message.id, `${from} ${reason}`, [message.content, ...quote], []);
+        return notify(message.id, `${from} ${reason}`, [message.content], []);
       }
       return 'skipped: nothing you asked to be notified about';
     };
@@ -416,46 +377,6 @@ function isBot(message: ChatMessage): boolean {
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-interface Authored {
-  userId: string;
-  content?: string;
-}
-
-interface ReplyTarget {
-  id?: string;
-  userId?: string;
-  username?: string;
-  content?: string;
-}
-
-/**
- * The message this one replies to, if any. Wavez sends `replyToId` (the
- * message id only); a `replyTo` object or a few other flat fields are
- * accepted too in case that changes.
- */
-function replyTarget(message: ChatMessage): ReplyTarget | null {
-  const m = message as unknown as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-  const nested = [m.replyTo, m.reply_to, m.reply, m.parentMessage, m.quotedMessage].find(
-    (v): v is Record<string, unknown> => !!v && typeof v === 'object',
-  );
-  const user = (nested?.user ?? nested?.author) as Record<string, unknown> | undefined;
-  const target: ReplyTarget = {
-    id: str(nested?.id) ?? str(nested?.messageId) ?? str(m.replyToId) ?? str(m.replyToMessageId),
-    userId: str(nested?.userId) ?? str(user?.id) ?? str(m.replyToUserId),
-    username: str(nested?.displayUsername) ?? str(nested?.username) ?? str(user?.username) ?? str(m.replyToUsername),
-    content: str(nested?.content) ?? str(nested?.text),
-  };
-  return target.id || target.userId || target.username ? target : null;
-}
-
-/** True when a reply's target is one of your messages: by its author's id, or failing that your name. */
-function isMine(target: ReplyTarget, me: NonNullable<RoomState['currentUser']>): boolean {
-  if (target.userId) return target.userId === me.id;
-  const name = target.username?.trim().toLowerCase();
-  return !!name && [me.username, me.displayUsername].some((n) => n?.trim().toLowerCase() === name);
 }
 
 // Room roles that @staff pings: bouncer and up.
