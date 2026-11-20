@@ -8,7 +8,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
 ### Changed
 
 - **Notifications** use the reply's author from the chat message when Wavez sends it, and still
-  quote the message you were replied to.
+  quote the message you were replied to. ([#25](https://github.com/thattomperson/wavez-tools/pull/25))
 - The **Voice & video** popup is back just left of the chat by default, and can now be dragged
   anywhere by the grip in its header (double-click the grip to put it back). Drag its side edge
   to make it wider and the videos bigger. Where you leave it and how wide are remembered.
