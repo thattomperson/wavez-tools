@@ -1,7 +1,7 @@
 // WavezFM HTTP API via the official @wavezfm/api SDK, using the browser's
 // session cookies. Only the resources we use are created, so the rest of the
 // SDK is tree-shaken out of the bookmarklet.
-import { createApi, createChatResource, createPlaylistResource, type PlaylistSummary, type PlaylistTrack } from '@wavezfm/api';
+import { createApi, createPlaylistResource, type PlaylistSummary, type PlaylistTrack } from '@wavezfm/api';
 
 export type { PlaylistSummary, PlaylistTrack };
 
@@ -28,12 +28,4 @@ export async function getTracks(playlistId: string): Promise<PlaylistTrack[]> {
     .map((track, index) => ({ track, index }))
     .sort((a, b) => (a.track.position ?? a.index) - (b.track.position ?? b.index))
     .map(({ track }) => track);
-}
-
-const chat = createChatResource(api);
-
-/** The room's most recent chat messages (oldest first or newest first, whichever the API gives). */
-export async function getChatHistory(roomId: string, limit = 100): Promise<{ id: string; userId: string; content: string }[]> {
-  const { data } = await chat.getMessages(roomId, 0, limit);
-  return data.messages ?? [];
 }
