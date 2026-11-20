@@ -253,9 +253,12 @@ export const notifications: ToggleTool = {
       const from = message.displayUsername || message.username || 'Someone';
       const s = settings.peek();
       const target = replyTarget(message);
-      if (s.reply && target?.id && !target.userId) {
+      // Look the target up when we don't know who wrote it, or when it's yours
+      // and we still need its text for the quote.
+      const toMe = target?.userId === me.id;
+      if (s.reply && target?.id && (!target.userId || (toMe && !target.content))) {
         const found = await lookUp(state.room.id, target.id);
-        if (found) Object.assign(target, { userId: found.userId, content: target.content ?? found.content });
+        if (found) Object.assign(target, { userId: target.userId ?? found.userId, content: target.content ?? found.content });
       }
       const repliedToMe = !!target && isMine(target, me);
       log('reply to:', target ?? 'nothing', repliedToMe ? '(you)' : '');
