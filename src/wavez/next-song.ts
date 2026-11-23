@@ -20,17 +20,23 @@ export interface NextSongStore extends ReadonlySignal<NextSongState> {
 
 // The playlist rotates a moment after the song changes, so wait before re-checking.
 const PLAYBACK_SETTLE_MS = 2500;
+// A failed lookup or opcheck (say the bot was slow) is tried again this many
+// times, this far apart, so one hiccup doesn't let an OP song through.
+const RETRIES = 3;
+const RETRY_MS = 10_000;
 
 export function createNextSongStore(): NextSongStore {
   const state = signal<NextSongState>({ status: 'loading' });
   let run = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
   const set = (next: NextSongState) => {
     state.value = next;
   };
 
-  const refresh = async () => {
+  const refresh = async (attempt = 0) => {
+    clearTimeout(retryTimer);
     const id = ++run;
     const { playlist, track } = state.peek();
     set({ status: 'loading', playlist, track });
@@ -42,13 +48,15 @@ export function createNextSongStore(): NextSongStore {
       const result = await opcheck(trackLink(found.track));
       if (id === run) set({ status: 'ready', ...found, result });
     } catch (err) {
-      if (id === run) set({ status: 'failed', ...found, error: err instanceof Error ? err.message : String(err) });
+      if (id !== run) return;
+      set({ status: 'failed', ...found, error: err instanceof Error ? err.message : String(err) });
+      if (attempt < RETRIES) retryTimer = setTimeout(() => void refresh(attempt + 1), RETRY_MS);
     }
   };
 
   const unsubscribe = requireBridge().room.subscribe('playback_changed', () => {
     clearTimeout(timer);
-    timer = setTimeout(refresh, PLAYBACK_SETTLE_MS);
+    timer = setTimeout(() => void refresh(), PLAYBACK_SETTLE_MS);
   });
   void refresh();
 
@@ -59,6 +67,7 @@ export function createNextSongStore(): NextSongStore {
       dispose() {
         run++;
         clearTimeout(timer);
+        clearTimeout(retryTimer);
         unsubscribe();
       },
     },

@@ -66,7 +66,8 @@ export const groups = [
       {
         name: 'Auto-move OP songs',
         body: `<p>Whenever your next song is OP, it moves it to the end of the playlist so you never play
-          something the room's heard too much. If 10 in a row are OP it stops until one passes.</p>`,
+          something the room's heard too much. A long run of OP songs gets worked through all the way, a little slower after the first 10.
+          If an OP song ever gets through, <code>/wt automove log</code> shows what it checked and did.</p>`,
       },
       {
         name: 'Playlist rotation',

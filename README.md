@@ -13,7 +13,9 @@ Tools in the panel:
 - **Playlist info**: active playlist length and first tracks
 - **AutoWoot** (switch): woots every song
 - **Auto-move OP songs** (switch): whenever the next song is OP, moves it to the end of the playlist.
-  Stops after 10 in a row until a song passes
+  A long run of OP songs is worked through all the way (a little slower after 10 in a row); it only
+  leaves songs alone when every song in the playlist is OP. `/wt automove log` shows what it checked
+  and did lately and which of your songs played, to work out why an OP song got through
 - **Playlist rotation** (switch): works through several playlists one after another, for a
   library split up by WavezFM's 500-song limit. Tick the playlists to rotate through under the cog;
   they go in your WavezFM playlist order and wrap round. Each playlist's starting song is the one at
