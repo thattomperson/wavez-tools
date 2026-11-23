@@ -100,10 +100,15 @@ npm run build
 | `livekit.min.js` | The LiveKit client, loaded by the main script only when you join a call |
 | `loader.txt` | `javascript:` URL for the remote-loading bookmark |
 | `inline.txt` | `javascript:` URL with the whole script inlined |
-| `index.html` | Install page with drag-to-bookmarks links |
+| `index.html` | Install page with drag-to-bookmarks links and a screenshot and description of each feature |
+| `screenshots/` | The feature screenshots, copied from `site/screenshots/` |
 
 The loader points at `scriptUrl` in `package.json`. Override it with `WAVEZ_TOOLS_URL=... npm run build`.
 In CI it's set automatically to this repo's Pages URL.
+
+The feature descriptions on the install page are in `site/features.mjs`. Their screenshots in
+`site/screenshots/` come from `npm run screenshots` (after a build), which runs the real panel in a
+pretend room with made-up data, since the live site needs a login. It needs Playwright with Chromium.
 
 Pushing to `main` typechecks, builds and deploys `dist/` to GitHub Pages via `.github/workflows/pages.yml`.
 Enable it once under **Settings → Pages → Source: GitHub Actions**.
@@ -124,6 +129,8 @@ Enable it once under **Settings → Pages → Source: GitHub Actions**.
 | `src/wavez/socket.ts`, `bot.ts` | Private bot commands over the page's own room WebSocket |
 | `src/config.ts` | Opcheck bot user id and command prefix, call token server address |
 | `src/call/` | Voice & video call: LiveKit session, popup, and loading LiveKit on demand |
+| `site/` | Feature descriptions and screenshots for the install page |
+| `scripts/screenshots/` | Takes those screenshots from the real panel in a pretend room |
 | `server/call-token/` | Cloudflare Worker that signs LiveKit join tokens for calls |
 | `src/wavez/tracks.ts` | Track links, names and "next track" logic |
 | `src/lib/` | Small shared helpers, including the notification sound player |
@@ -165,7 +172,8 @@ and pass it (or a function that reads it) as an attribute or child: only that no
 `ctx.nextSong` is already a signal, so `<b>{computed(() => nextSong.value.status)}</b>` follows
 it. See `src/tools/room-info.tsx`.
 
-Then add it to the `tools` array in `src/tools/index.ts`.
+Then add it to the `tools` array in `src/tools/index.ts`, and describe it on the install page in
+`site/features.mjs` with a screenshot (see `CLAUDE.md`).
 
 The bridge is documented in the [Room Extension API](https://github.com/WavezFM/WavezFM-Extension-API).
 

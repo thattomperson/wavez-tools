@@ -21,6 +21,9 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- The install page now shows every feature with a screenshot and a short description, not just the
+  install links. Screenshots are taken from the real panel in a pretend room with
+  `npm run screenshots`.
 - **Playlist rotation** switch: for a library split across playlists by the 500-song limit. It
   remembers the song at the front of each playlist when it becomes active, and when that song
   comes round again it makes the next ticked playlist active (picked under the cog, in your
