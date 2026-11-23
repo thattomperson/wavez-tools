@@ -5,6 +5,14 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ## [Unreleased]
 
+### Added
+
+- **Playlist rotation** switch: for a library split across playlists by the 500-song limit. It
+  remembers the song at the front of each playlist when it becomes active, and when that song
+  comes round again it makes the next ticked playlist active (picked under the cog, in your
+  WavezFM playlist order). Works with **Auto-move OP songs**: moved songs count as played, and a
+  starting song that's back round isn't moved. `/wt rotate on|off` flips it.
+
 ### Changed
 
 - **Notifications** spot replies to you by the reply's author id that Wavez now sends, with no

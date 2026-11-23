@@ -51,8 +51,9 @@ export interface PlaylistQueue {
   nextIndex: number;
 }
 
-export async function getPlaylistQueue(): Promise<PlaylistQueue> {
-  const playlist = await getActivePlaylist();
+/** The active playlist's tracks in play order, or those of `playlist` if given. */
+export async function getPlaylistQueue(playlist?: PlaylistSummary): Promise<PlaylistQueue> {
+  playlist ??= await getActivePlaylist();
   const tracks = await getTracks(playlist.id);
   if (!tracks.length) throw new Error(`"${playlist.name}" is empty.`);
   // While you're DJing, the playing track may still sit at the top; skip it.
