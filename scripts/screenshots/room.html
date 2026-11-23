@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Late Night Lofi</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; display: grid; grid-template-columns: 1fr 340px; grid-template-rows: 52px 1fr;
+    background: #0e0f15; color: #ecedf3; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid #22243a; }
+  header b { font-size: 15px; }
+  header span { color: #9a9cae; }
+  main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; }
+  .video { width: min(100%, 560px); aspect-ratio: 16 / 9; border-radius: 14px;
+    background: radial-gradient(circle at 30% 30%, #3b3170, #1a1b2c 60%), #1a1b2c; }
+  .np { text-align: center; } .np b { display: block; font-size: 16px; } .np span { color: #9a9cae; }
+  aside { display: flex; flex-direction: column; border-left: 1px solid #22243a; background: #12131c; }
+  .msgs { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 14px; overflow: hidden; }
+  .msg b { color: #b9c8ff; margin-right: 6px; }
+  form { padding: 12px; border-top: 1px solid #22243a; }
+  input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #2c2f40; background: #1b1c28; color: inherit; font: inherit; }
+</style>
+</head>
+<body>
+<header><b>Late Night Lofi</b><span>37 listening</span></header>
+<main>
+  <div class="video"></div>
+  <div class="np"><b>Paper Lanterns</b><span>Harbor Static · played by lunaflux</span></div>
+</main>
+<aside>
+  <div class="msgs">
+    <div class="msg"><b>mossgarden</b>this one is so good</div>
+    <div class="msg"><b>kiwi_beats</b>queue's moving fast tonight</div>
+    <div class="msg"><b>lunaflux</b>thanks for the woots everyone</div>
+  </div>
+  <form onsubmit="return false"><input type="text" placeholder="Send a message"></form>
+</aside>
+</body>
+</html>

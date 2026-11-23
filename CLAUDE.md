@@ -69,7 +69,28 @@ has to be checked by hand by running the bookmarklet in a WavezFM room.
   or panel); use `watch()` from `src/ui/dom.ts` for other effects so they stop too. The next-song
   store (`ctx.nextSong`) is itself a read-only signal.
 - Keep the bundle small; it's injected into someone else's page.
-- When you add or change a tool, update the tool list in `README.md` too.
+- When you add or change a tool, update the tool list in `README.md` too, and the GitHub Pages site
+  (see below).
+
+## Keep the GitHub Pages site up to date
+
+The Pages site (`dist/index.html`, built by `scripts/build.mjs`) shows every feature with a short
+description and a screenshot. **Every user-facing feature or change gets reflected there in the same
+PR**, just like the README and changelog.
+
+- Descriptions live in `site/features.mjs`, grouped as on the page. Add an entry for a new tool or
+  switch, and edit the entry when a change alters what it does or looks like. Write for a user of
+  the bookmarklet, in a sentence or two, like the README.
+- Screenshots live in `site/screenshots/` and are taken by `npm run screenshots`
+  (`scripts/screenshots/run.mjs`, after `npm run build`). It runs the real built panel in a pretend
+  room: `scripts/screenshots/mock-room.js` stands in for the bridge, the room socket and
+  notifications, and `run.mjs` answers the playlist API and call token server with made-up data.
+  The live site needs a login, so don't try to screenshot it.
+- For a new feature, add a scenario to `run.mjs` (switches to turn on, saved settings, and what to
+  click, such as opening its cog), give it a `shot` selector if a cropped row reads better than the
+  whole panel, and point the entry's `image` at it. Re-run the scenarios whose look changed
+  (`npm run screenshots -- auto-join panel`) and look at the images before committing.
+- The build fails if an entry names a screenshot that doesn't exist.
 
 ## Keep the changelog up to date
 
