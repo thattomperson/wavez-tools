@@ -14,6 +14,14 @@ Tools in the panel:
 - **AutoWoot** (switch): woots every song
 - **Auto-move OP songs** (switch): whenever the next song is OP, moves it to the end of the playlist.
   Stops after 10 in a row until a song passes
+- **Playlist rotation** (switch): works through several playlists one after another, for a
+  library split up by WavezFM's 500-song limit. Tick the playlists to rotate through under the cog;
+  they go in your WavezFM playlist order and wrap round. Each playlist's starting song is the one at
+  the front when it became active. Once that song comes round to be next again, the next playlist
+  becomes active. Songs that Auto-move OP songs sends to the end count as played through, and
+  Auto-move leaves a starting song that's come back round alone so the switch happens instead. The
+  line under the name says how many songs are left before the switch. Starting songs are
+  remembered between runs; the cog lists them and can forget them
 - **Auto-join** (switch): joins the DJ queue when fewer than N other people are waiting. The cog
   next to the switch sets N (1 by default, meaning only when nobody else is waiting). While
   Auto-leave is on, it stays under Auto-leave's "when N people are waiting" number so the two
@@ -53,7 +61,7 @@ Switches (and the settings under their cogs) are remembered between runs and sto
 While the panel is open you can also type commands into the room chat. They're never posted to
 the room; the answer shows up as a small note above the chat box.
 
-- `/wt autowoot on|off`, `/wt automove on|off`, `/wt autojoin on|off`, `/wt autoleave on|off`,
+- `/wt autowoot on|off`, `/wt automove on|off`, `/wt rotate on|off`, `/wt autojoin on|off`, `/wt autoleave on|off`,
   `/wt notify on|off`:
   flip a switch (leave off `on|off` to toggle it)
 - `/wt notify test`: says whether notifications are allowed, what the last chat message looked

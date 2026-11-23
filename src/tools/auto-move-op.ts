@@ -2,6 +2,7 @@ import { effect } from '@preact/signals-core';
 import { playlists } from '../wavez/api';
 import type { NextSongState } from '../wavez/next-song';
 import { getPlaylistQueue, trackName } from '../wavez/tracks';
+import { rotationDue } from './playlist-rotation';
 import type { ToggleTool } from './types';
 
 // Watches the header's opcheck of the next song and moves the song to the end
@@ -32,6 +33,9 @@ export const autoMoveOp: ToggleTool = {
         return;
       }
       const { track } = state;
+      // A playlist's starting song back at the front means Playlist rotation is
+      // switching to the next playlist, so don't send it round again.
+      if (rotationDue(state.playlist.id, track.id)) return;
       if (inARow >= MAX_IN_A_ROW) {
         console.warn(`WavezFM Tools: moved ${inARow} OP songs in a row; leaving ${trackName(track)} where it is.`);
         return;

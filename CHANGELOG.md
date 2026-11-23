@@ -21,6 +21,13 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ### Added
 
+- **Playlist rotation** switch: for a library split across playlists by the 500-song limit. It
+  remembers the song at the front of each playlist when it becomes active, and when that song
+  comes round again it makes the next ticked playlist active (picked under the cog, in your
+  WavezFM playlist order). Works with **Auto-move OP songs**: moved songs count as played, and a
+  starting song that's back round isn't moved. `/wt rotate on|off` flips it.
+  ([#26](https://github.com/thattomperson/wavez-tools/pull/26))
+
 - **Notifications** can tell you when someone replies to one of your messages, not just when they
   @mention you. It's a new "Replies to my messages" option under the cog, on by default.
   ([#24](https://github.com/thattomperson/wavez-tools/pull/24))
