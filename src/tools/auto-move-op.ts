@@ -9,9 +9,14 @@ import type { ToggleTool } from './types';
 // of the playlist when it's OP. The store then checks the new next song, so a
 // run of OP songs is worked through one at a time.
 //
-// After this many OP songs in a row, stop until a song passes, so a playlist
-// that's mostly OP doesn't send the bot a check for every song in it.
-const MAX_IN_A_ROW = 10;
+// A long run of OP songs is still worked through all the way, but after this
+// many in a row each move waits a moment, to go easy on the bot. It only gives
+// up once it's moved as many songs as the playlist holds, which means
+// everything in it is OP.
+const EASE_OFF_AFTER = 10;
+const EASE_OFF_MS = 1000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const autoMoveOp: ToggleTool = {
   kind: 'toggle',
@@ -25,9 +30,13 @@ export const autoMoveOp: ToggleTool = {
     let stopped = false;
     let moving = false;
     let inARow = 0;
+    let lastPlaylistId: string | undefined;
 
     const check = async (state: NextSongState) => {
       if (stopped || moving || state.status !== 'ready') return;
+      // A run doesn't carry over to another playlist (say after Playlist rotation switched).
+      if (state.playlist.id !== lastPlaylistId) inARow = 0;
+      lastPlaylistId = state.playlist.id;
       if (!state.result.op && !state.result.blocked) {
         inARow = 0;
         return;
@@ -36,15 +45,22 @@ export const autoMoveOp: ToggleTool = {
       // A playlist's starting song back at the front means Playlist rotation is
       // switching to the next playlist, so don't send it round again.
       if (rotationDue(state.playlist.id, track.id)) return;
-      if (inARow >= MAX_IN_A_ROW) {
-        console.warn(`WavezFM Tools: moved ${inARow} OP songs in a row; leaving ${trackName(track)} where it is.`);
-        return;
-      }
       moving = true;
       try {
+        if (inARow >= EASE_OFF_AFTER) await sleep(EASE_OFF_MS);
+        if (stopped) return;
         const { playlist, tracks, nextIndex } = await getPlaylistQueue();
-        // The playlist may have moved on while we were checking.
-        if (stopped || tracks[nextIndex]?.id !== track.id || tracks.length < 2) return;
+        if (stopped) return;
+        // The playlist moved on while we were checking: check the song that's next now.
+        if (tracks[nextIndex]?.id !== track.id) {
+          nextSong.refresh();
+          return;
+        }
+        if (tracks.length < 2) return;
+        if (inARow >= tracks.length) {
+          console.warn(`WavezFM Tools: every song in "${playlist.name}" is OP; leaving ${trackName(track)} where it is.`);
+          return;
+        }
         const order = [...tracks.filter((t) => t.id !== track.id), track];
         await playlists.reorderTracks(playlist.id, order.map((t) => t.id));
         inARow++;

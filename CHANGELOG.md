@@ -5,6 +5,13 @@ Newest first. See `CLAUDE.md` for how to add entries.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Auto-move OP songs** no longer lets a long run of OP songs play. It used to stop after moving
+  10 in a row, so a playlist opening with 16 OP songs (say one Playlist rotation just switched to)
+  played the last 6. Now it keeps going, a little slower after 10, and only stops when every song in
+  the playlist is OP. It also re-checks instead of giving up when the playlist changed mid-check.
+
 ### Changed
 
 - **Notifications** spot replies to you by the reply's author id that Wavez now sends, with no
