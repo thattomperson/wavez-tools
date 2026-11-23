@@ -11,6 +11,7 @@ Newest first. See `CLAUDE.md` for how to add entries.
   10 in a row, so a playlist opening with 16 OP songs (say one Playlist rotation just switched to)
   played the last 6. Now it keeps going, a little slower after 10, and only stops when every song in
   the playlist is OP. It also re-checks instead of giving up when the playlist changed mid-check.
+  ([#28](https://github.com/thattomperson/wavez-tools/pull/28))
 
 ### Changed
 
