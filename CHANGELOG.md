@@ -12,6 +12,9 @@ Newest first. See `CLAUDE.md` for how to add entries.
   played the last 6. Now it keeps going, a little slower after 10, and only stops when every song in
   the playlist is OP. It also re-checks instead of giving up when the playlist changed mid-check.
   ([#28](https://github.com/thattomperson/wavez-tools/pull/28))
+- When the next song can't be checked (say the bot is slow to answer), it's tried again up to three
+  times instead of letting the song through unchecked.
+  ([#28](https://github.com/thattomperson/wavez-tools/pull/28))
 
 ### Changed
 
@@ -28,6 +31,10 @@ Newest first. See `CLAUDE.md` for how to add entries.
   track down failed joins. ([#22](https://github.com/thattomperson/wavez-tools/pull/22))
 
 ### Added
+
+- `/wt automove log` shows what **Auto-move OP songs** checked and did lately, and flags any of your
+  songs that played while OP, so it's clear afterwards why one got through. `/wt automove clearlog`
+  empties it. ([#28](https://github.com/thattomperson/wavez-tools/pull/28))
 
 - The install page now shows every feature with a screenshot and a short description, not just the
   install links. Screenshots are taken from the real panel in a pretend room with
